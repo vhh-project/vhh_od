@@ -1,0 +1,79 @@
+
+Development:
+  ###
+  # This parameter is used to activate or deactivate the debug mode.
+  DEBUG_FLAG: 1             # 1 ... activate 0 ... deactivate
+  ###
+  # This parameter is used to specify a SBD results file for debugging mode.
+  SBD_RESULTS_PATH: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/sbd/final_results/5.csv"
+  ###
+  # This parameter is used to save a debug package (e.g. including some visualizations, ... - not available yet).
+  SAVE_DEBUG_PKG: 0
+
+PreProcessing:
+  ###
+  # This flag is used to to specify the resize dimension.
+  RESIZE_DIM: 416, 416      # resize dimension -> height, width
+
+OdCore:
+  ###
+  # This parameter is used to specify the class names.
+  CLASS_NAMES: ["ELS","LS","MS","CU"]
+  ###
+  # This parameter is used to specify the batch size.
+  BATCH_SIZE: 8
+
+  ###
+  # This parameter is used to save raw results (e.g. debug visualizations).
+  SAVE_RAW_RESULTS: 1       # 1 ... yes 0 ... no
+  ###
+  # This parameter is used to specify the path for saving the raw results.
+  PATH_RAW_RESULTS: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/raw_results/"
+  ###
+  # This parameter is used to specify the prefix for the results file.
+  PREFIX_RAW_RESULTS: "results_raw_"
+  ###
+  # This parameter is used to specify the postfix for the results file.
+  POSTFIX_RAW_RESULTS: "csv"
+
+  ###
+  # This parameter is used to save final results (e.g. csv list).
+  SAVE_FINAL_RESULTS: 1     # 1 ... yes 0 ... no
+  ###
+  # This parameter is used to specify the path for saving the final results.
+  PATH_FINAL_RESULTS: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/final_results/"
+  ###
+  # This parameter is used to specify the prefix for the results file.
+  PREFIX_FINAL_RESULTS: "results_"
+  ###
+  # This parameter is used to specify the postfix for the results file.
+  POSTFIX_FINAL_RESULTS: "csv"
+
+  ###
+  # This parameter is used to specify the path to the videos.
+  PATH_VIDEOS: "/data/share/maxrecall_vhh_mmsi/develop/videos/downloaded/"
+
+  ###
+  # This parameter is used to specify the path to the pre-trained model.
+  PATH_PRETRAINED_MODEL: "/home/dhelm/VHH_Develop/pycharm_vhh_od/pre_trained_models/yolov3.weights"
+
+  ###
+  # yolov3 detector
+  MODEL_CONFIG_PATH: "/home/dhelm/VHH_Develop/pycharm_vhh_od/config/yolov3/yolov3.cfg"
+  ###
+  # yolov3 detector - confidence threshold
+  MODEL_CONF_THRES: 0.8
+
+Evaluation:
+  ###
+  # This parameter is used to save evaluation results (e.g. visualizations, ... ).
+  SAVE_EVAL_RESULTS: 0
+  ###
+  # This parameter is used the raw results path.
+  PATH_RAW_RESULTS: "/data/share/maxrecall_vhh_mmsi/videos/results/sbd/raw_results/"
+  ###
+  # This parameter is used to specify the path to store the evaluation results path.
+  PATH_EVAL_RESULTS: "/data/share/maxrecall_vhh_mmsi/videos/results/sbd/develop/"
+  ###
+  # This parameter is used to groundtruth annotations used for evaluation.
+  PATH_GT_ANNOTATIONS: "/caa/Projects02/vhh/private/database_nobackup/VHH_datasets/annotations/ShotBoundaryDetection/imediacities/sbd_imc_annotations_20191231.csv"
