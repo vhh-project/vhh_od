@@ -183,16 +183,21 @@ class Video(object):
             print("Error: you need to specify a valid path!")
             exit()
 
-        shot = self.shot_list[sid]
+        shot = self.shot_list[sid-1]
         shot_frames_tensors = all_frames_tensors[shot.start_pos:shot.end_pos+1, :, :, :]
         frameSize = (int(shot_frames_tensors[0].size()[1]), int(shot_frames_tensors[0].size()[2]))
 
+        video_results_path = path + str(self.vidName.split('.')[0]) + "/"
+
+        if not os.path.exists(video_results_path):
+            os.makedirs(video_results_path)
+
         if (save_single_plots_flag == True):
-            if not os.path.exists(path + str(sid)):
-                os.makedirs(path + str(sid))
+            if not os.path.exists(video_results_path + str(sid)):
+                os.makedirs(video_results_path + str(sid))
 
         if (save_as_video_flag == True):
-            out = cv2.VideoWriter(path + str(sid) + ".avi", cv2.VideoWriter_fourcc(*"MJPG"), 12, frameSize)
+            out = cv2.VideoWriter(video_results_path + str(sid) + ".avi", cv2.VideoWriter_fourcc(*"MJPG"), 12, frameSize)
 
         for i in range(0, len(shot_frames_tensors)):
             frame_id = i + shot.start_pos
@@ -212,7 +217,7 @@ class Video(object):
                 out.write(normalized_frame)
 
             if (save_single_plots_flag == True):
-                cv2.imwrite(path + str(sid) + "/" + str(frame_id) + ".png", normalized_frame)
+                cv2.imwrite(video_results_path + str(sid) + "/" + str(frame_id) + ".png", normalized_frame)
 
             if (plot_flag == True):
                 cv2.imshow("Shot ID:" + str(sid), normalized_frame)

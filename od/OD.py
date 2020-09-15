@@ -222,14 +222,16 @@ class OD(object):
 
         if (self.config_instance.save_raw_results == True):
             print("shots as videos including bbs")
-            vid_instance.visualizeShotsWithBB(path=self.config_instance.path_raw_results,
-                                              sid=22,
-                                              all_frames_tensors=all_tensors_l,
-                                              save_single_plots_flag=False,
-                                              plot_flag=False,
-                                              boundingbox_flag=True,
-                                              save_as_video_flag=True
-                                              )
+
+            for shot in vid_instance.shot_list:
+                vid_instance.visualizeShotsWithBB(path=self.config_instance.path_raw_results,
+                                                  sid=int(shot.sid),
+                                                  all_frames_tensors=all_tensors_l,
+                                                  save_single_plots_flag=False,
+                                                  plot_flag=False,
+                                                  boundingbox_flag=True,
+                                                  save_as_video_flag=True
+                                                  )
         ''''''
 
     def runModel(self, model, tensor_l):
