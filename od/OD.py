@@ -4,6 +4,8 @@ from od.Video import Video
 from od.Models import *
 from od.utils import *
 from od.datasets import *
+from od.Shot import Shot
+from od.CustObject import CustObject
 
 import numpy as np
 import os
@@ -70,16 +72,28 @@ class OD(object):
             print("ERROR: there must be at least one shot in the list!")
             exit()
 
+        # load video instance
+        vid_name = shots_np[0][1]
+        vid_instance = Video()
+        vid_instance.load(os.path.join(self.config_instance.path_videos, vid_name))
+
+        # prepare numpy shot list
+        shot_instance = None
+        for s in range(0, len(shots_per_vid_np)):
+            # print(shots_per_vid_np[s])
+            shot_instance = Shot(sid=int(s + 1),
+                                 movie_name=shots_per_vid_np[s][1],
+                                 start_pos=int(shots_per_vid_np[s][2]),
+                                 end_pos=int(shots_per_vid_np[s][3]))
+
+            vid_instance.addShotObject(shot_obj=shot_instance)
+
         if (self.config_instance.debug_flag == True):
             num_shots = 3
             offset = 22
         else:
-            num_shots = len(shots_np)
+            num_shots = len(vid_instance.shot_list)
             offset = 0
-
-        vid_name = shots_np[0][1]
-        vid_instance = Video()
-        vid_instance.load(os.path.join(self.config_instance.path_videos, vid_name))
 
         # prepare transformation for cnn model
         preprocess = transforms.Compose([
@@ -97,23 +111,7 @@ class OD(object):
             #                      self.config_instance.std_dev[2] / 255.0))
         ])
 
-        # read all frames of video
-        cap = cv2.VideoCapture(self.config_instance.path_videos + "/" + vid_name)
-        frame_l = []
-        cnt = 0
-        while (True):
-            cnt = cnt + 1
-            ret, frame = cap.read()
-            # print(cnt)
-            # print(ret)
-            # print(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            if (ret == True):
-                frame = preprocess(frame)
-                frame_l.append(frame) #.transpose((2,0,1)
-            else:
-                break
-
-        all_tensors_l = torch.stack(frame_l)
+        all_tensors_l = vid_instance.getAllFrames(preprocess_pytorch=preprocess)
 
         # prepare object detection model
         Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
@@ -131,23 +129,22 @@ class OD(object):
         obj_id = 0
         results_od_l = []
         for idx in range(offset + 0, offset + num_shots):
-            # print(shots_np[idx])
-            shot_id = int(shots_np[idx][0])
-            vid_name = str(shots_np[idx][1])
-            start = int(shots_np[idx][2])
-            stop = int(shots_np[idx][3])
+            shot_id = int(vid_instance.shot_list[idx].sid)
+            vid_name = str(vid_instance.shot_list[idx].movie_name)
+            start = int(vid_instance.shot_list[idx].start_pos)
+            stop = int(vid_instance.shot_list[idx].end_pos)
 
-            print("-----")
-            print(shot_id)
-            print(vid_name)
-            print(start)
-            print(stop)
-            print(stop - start)
+            if(self.config_instance.debug_flag == True):
+                print("-----")
+                print(shot_id)
+                print(vid_name)
+                print(start)
+                print(stop)
+                print(stop - start)
 
             shot_tensors = all_tensors_l[start:stop + 1, :, :, :]
 
             # run od detector
-
             # prepare pytorch dataloader
             dataset = data.TensorDataset(shot_tensors)  # create your datset
             inference_dataloader = data.DataLoader(dataset=dataset,
@@ -167,25 +164,14 @@ class OD(object):
                 with torch.no_grad():
                     nms_thres = 0.4
                     output = model(input_batch)
-                    #print(type(output))
-                    #print(output.size())
                     detections = non_max_suppression(prediction=output,
                                                      conf_thres=self.config_instance.confidence_threshold,
                                                      nms_thres=nms_thres)
-                    #print(type(detections))
-                    #print(np.array(detections))
-                    #print(np.array(detections).shape)
-                    #exit()
                     predictions_l.extend(detections)
-            print(predictions_l)
-            print(len(predictions_l))
-            print(type(predictions_l))
-
-            #print(np.array(predictions_l).shape)
 
             # prepare results
             for a in range(0, len(predictions_l)):
-                frame_id = start + a
+                frame_id = vid_instance.shot_list[idx].start_pos + a
                 frame_based_predictions = predictions_l[a]
 
                 if(self.config_instance.debug_flag == True):
@@ -200,8 +186,6 @@ class OD(object):
                             stop) + ";" + str(frame_id) + ";" + str(None) + ";" + str(None) + ";" + str(
                             None) + ";" + str(None) + ";" + str(None) + ";" + str(None) + ";" + str(None)
                         print(tmp)
-
-
                 else:
                     #print(str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + str(stop) + ";" + str(frame_id))
                     for b in range(0, len(frame_based_predictions)):
@@ -211,160 +195,42 @@ class OD(object):
                         results_od_l.append([obj_id, shot_id, vid_name, start, stop, frame_id,
                                              pred[0], pred[1], pred[2], pred[3], pred[4], pred[5], pred[6]])
 
+                        obj_instance = CustObject(oid=b+1,
+                                                  fid=frame_id,
+                                                  object_class_name="Default",
+                                                  conf_score=pred[4],
+                                                  bb_x1=pred[0],
+                                                  bb_y1=pred[1],
+                                                  bb_x2=pred[2],
+                                                  bb_y2=pred[3]
+                                                  )
+                        vid_instance.shot_list[idx].addCustomObject(obj_instance)
+
                         if (self.config_instance.debug_flag == True):
                             tmp = str(obj_id) + ";" + str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + \
                                   str(stop) + ";" + str(frame_id) + ";" + str(pred[0]) + ";" + str(pred[1]) + ";" + \
                                   str(pred[2]) + ";" + str(pred[3]) + ";" + str(pred[4]) + ";" + str(pred[5]) + ";" + \
                                   str(pred[6])
                             print(tmp)
+                ''''''
+        if (self.config_instance.debug_flag == True):
+            vid_instance.printVIDInfo()
 
-        results_od_np = np.array(results_od_l)
-
-        print(results_od_np)
-        print(results_od_np.shape)
+        if (self.config_instance.save_final_results == True):
+            vid_instance.export2csv(filepath=self.config_instance.path_final_results + vid_name.split('.')[0] + "." +
+                                    self.config_instance.path_postfix_final_results)
 
         if (self.config_instance.save_raw_results == True):
             print("shots as videos including bbs")
-
-
-
-        # export results
-        self.exportOdResults(str(max_recall_id), results_od_np)
-
-    def saveShotsWithBBs(self, results_file):
-
-        # read and prepare results from csv
-        fp = open(self.config_instance.path_final_results + results_file, 'r')
-        lines = fp.readlines()
-        fp.close()
-
-        lines = lines[1:]
-        final_results_l = []
-        for line in lines:
-            line = line.replace("\n", "")
-            line_split = line.split(';')
-
-            line_entries_l = []
-            for j in range(0, len(line_split)):
-                line_entries_l.append(line_split[j])
-
-            final_results_l.append(line_entries_l)
-        results_np = np.array(final_results_l)
-        print(results_np)
-        print(results_np.shape)
-
-
-        # read all frames of video
-
-
-        vid_name = "5.m4v"
-        vid_instance = Video()
-        vid_instance.load(os.path.join(self.config_instance.path_videos, vid_name))
-
-        # prepare transformation for cnn model
-        preprocess = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.Resize((int(vid_instance.height), vid_instance.width)),
-            transforms.CenterCrop((int(vid_instance.height), int(vid_instance.height))),
-            transforms.Resize(self.config_instance.resize_dim),
-        ])
-
-        cap = cv2.VideoCapture(self.config_instance.path_videos + "/" + vid_name)
-        frame_l = []
-        cnt = 0
-        while (True):
-            cnt = cnt + 1
-            ret, frame = cap.read()
-            # print(cnt)
-            # print(ret)
-            # print(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            if (ret == True):
-                frame = preprocess(frame)
-                frame_np = np.array(frame)
-                frame_l.append(frame_np)  # .transpose((2,0,1)
-            else:
-                break
-
-        #all_frames_l = torch.stack(frame_l)
-        all_frames_np = np.array(frame_l)
-        print(all_frames_np.shape)
-
-        #exit()
+            vid_instance.visualizeShotsWithBB(path=self.config_instance.path_raw_results,
+                                              sid=22,
+                                              all_frames_tensors=all_tensors_l,
+                                              save_single_plots_flag=False,
+                                              plot_flag=False,
+                                              boundingbox_flag=True,
+                                              save_as_video_flag=True
+                                              )
         ''''''
-
-        # filter results per shot
-        shot_ids = np.unique(results_np[:, 1:2])
-        #print(shot_ids)
-        shot_ids = [23]
-
-        for sid in shot_ids:
-            #print("###########")
-            #print(sid)
-            idx = np.where(results_np[:, 1:2].astype('int') == int(sid))[0]
-            #print(idx)
-
-            shot_results_np = results_np[idx]
-            #print(shot_results_np)
-
-            for s in range(0, len(shot_results_np)):
-                obj_id = shot_results_np[s][0]
-                if(obj_id == "None"):
-                    #print("no object detected")
-                    asdf = 0
-                else:
-                    obj_id = shot_results_np[s][0]
-                    shot_id = shot_results_np[s][1]
-                    vid_name = shot_results_np[s][2]
-                    start = shot_results_np[s][3]
-                    stop = shot_results_np[s][4]
-                    frame_id = shot_results_np[s][5]
-                    bb_x1 = float(shot_results_np[s][6])
-                    bb_y1 = float(shot_results_np[s][7])
-                    bb_x2 = float(shot_results_np[s][8])
-                    bb_y2 = float(shot_results_np[s][9])
-                    #print(obj_id)
-                    #print(frame_id)
-                    frame = all_frames_np[int(frame_id)]
-
-                    box_w = bb_x2 - bb_x1
-                    box_h = bb_y2 - bb_y1
-
-                    print("###############################")
-                    print(str(bb_x1) + ";" + str(bb_y1) + ";" + str(bb_x2) + ";" + str(bb_y2))
-                    print(str(box_w) + ";" + str(box_h))
-
-                    # save results
-
-                    # Create plot
-                    plt.figure()
-                    fig, ax = plt.subplots(1)
-                    ax.imshow(frame)
-                    # Create a Rectangle patch
-                    cmap = plt.get_cmap("tab20b")
-                    colors = [cmap(i) for i in np.linspace(0, 1, 20)]
-                    bbox = patches.Rectangle((bb_x1, bb_y1), box_w, box_h, linewidth=2, edgecolor=colors[0], facecolor="none")
-                    # Add the bbox to the plot
-                    ax.add_patch(bbox)
-                    plt.show()
-                    plt.close()
-
-
-
-
-        '''
-        for d in range(0, len(results_od_np)):
-            obj_id = results_od_np[d][0]
-            shot_id = results_od_np[d][1]
-            vid_name = results_od_np[d][2]
-            start = results_od_np[d][3]
-            stop = results_od_np[d][4]
-            frame_id = results_od_np[d][5]
-            pred[0] = results_od_np[d][6]
-            pred[1] = results_od_np[d][7]
-            pred[2] = results_od_np[d][8]
-            pred[3] = results_od_np[d][9]
-        '''
-
 
     def runModel(self, model, tensor_l):
         """
@@ -376,8 +242,6 @@ class OD(object):
                  the number of hits within a shot,
                  frame-based predictions for a whole shot
         """
-
-
 
 
     def loadSbdResults(self, sbd_results_path):
@@ -405,31 +269,3 @@ class OD(object):
         #print(lines_np.shape)
 
         return lines_np
-
-    def exportOdResults(self, fName, od_results_np: np.ndarray):
-        """
-        Method to export od results as csv file.
-
-        :param fName: [required] name of result file.
-        :param stc_results_np: numpy array holding the bounding box coordinates as well as the corresponding class names for each frame of one shot of a movie.
-        """
-
-        print("export results to csv!")
-
-        if (len(od_results_np) == 0):
-            print("ERROR: numpy is empty")
-            exit()
-
-        # open stc resutls file
-        if (self.config_instance.debug_flag == True):
-            fp = open(self.debug_results + "/" + fName + ".csv", 'w')
-        else:
-            fp = open(self.config_instance.path_final_results + "/" + fName + ".csv", 'w')
-        header = "obj_id;sid;vid_name;start;stop;fid;x1;y1;x2;y2;conf_score;score;class_id"
-        fp.write(header + "\n")
-
-        for i in range(0, len(od_results_np)):
-            tmp_line = str(od_results_np[i][0])
-            for c in range(1, len(od_results_np[i])):
-                tmp_line = tmp_line + ";" + od_results_np[i][c]
-            fp.write(tmp_line + "\n")

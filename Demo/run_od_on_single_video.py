@@ -10,8 +10,8 @@ results_path = "/data/share/maxrecall_vhh_mmsi/develop/videos/results/sbd/final_
 results_file_list = os.listdir(results_path)
 shots_np = od_instance.loadSbdResults(results_path + results_file_list[0])
 
-#max_recall_id = 99
-#od_instance.runOnSingleVideo(shots_per_vid_np=shots_np, max_recall_id=max_recall_id)
+max_recall_id = 99
+od_instance.runOnSingleVideo(shots_per_vid_np=shots_np, max_recall_id=max_recall_id)
 
-res_file = "99.csv"
-od_instance.saveShotsWithBBs(results_file=res_file)
+#res_file = "99.csv"
+#od_instance.saveShotsWithBBs(results_file=res_file)

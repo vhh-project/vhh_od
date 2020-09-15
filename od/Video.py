@@ -2,7 +2,9 @@ import numpy as np
 import cv2
 import datetime
 from od.utils import *
+from od.Shot import Shot
 from PIL import Image
+import torchvision
 
 
 class Video(object):
@@ -18,7 +20,7 @@ class Video(object):
         #printCustom("create instance of video class ... ", STDOUT_TYPE.INFO);
         self.vidFile = ''
         self.vidName = ""
-        self.frame_rate = 0
+        self.frame_rate = 10
         self.channels = 0
         self.height = 0
         self.width = 0
@@ -28,6 +30,10 @@ class Video(object):
         self.vid = None
         self.convert_to_gray = False
         self.convert_to_hsv = False
+        self.shot_list = []
+
+    def addShotObject(self, shot_obj: Shot):
+        self.shot_list.append(shot_obj)
 
     def load(self, vidFile: str):
         """
@@ -60,7 +66,7 @@ class Video(object):
         self.format = self.vid.get(cv2.CAP_PROP_FORMAT)
         self.number_of_frames = self.vid.get(cv2.CAP_PROP_FRAME_COUNT)
 
-        self.vid.release();
+        self.vid.release()
 
     def printVIDInfo(self):
         """
@@ -77,7 +83,33 @@ class Video(object):
         print("height: " + str(self.height))
         print("nFrames: " + str(self.number_of_frames))
         print("---------------------------------")
+        print("<<< Shot list >>>")
+        for shot in self.shot_list:
+            shot.printShotInfo()
 
+    def getAllFrames(self, preprocess_pytorch=None):
+        # read all frames of video
+        cap = cv2.VideoCapture(self.vidFile)
+
+        frame_l = []
+        cnt = 0
+        while (True):
+            cnt = cnt + 1
+            ret, frame = cap.read()
+            # print(cnt)
+            # print(ret)
+            # print(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if (ret == True):
+                if(preprocess_pytorch is not None):
+                    frame = preprocess_pytorch(frame)
+                frame_l.append(frame)  # .transpose((2,0,1)
+            else:
+                break
+        cap.release()
+
+        if (preprocess_pytorch is not None):
+            all_tensors_l = torch.stack(frame_l)
+            return all_tensors_l
 
     def getFrame(self, frame_id):
         """
@@ -112,3 +144,83 @@ class Video(object):
         #print("time: " + str(round(time_diff, 4)) + " sec")
 
         return frame_np
+
+    def export2csv(self, filepath=None):
+        print("export all results to csv ... ")
+
+        if(filepath == None):
+            print("ERROR: You have to specify a vailid path! csv export aborted!")
+            exit()
+
+        ## clean up
+        remove_csv_export(filepath)
+
+        ## export
+        field_names = ['sid', 'movie_name', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
+                       'conf_score', 'class_name']
+
+        for shot in self.shot_list:
+            dict_l = shot.convertObjectList2Dict()
+            for dict_entry in dict_l:
+                append_dict_as_row(filepath, dict_entry, field_names)
+
+    def loadCsvExport(self, filepath="/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/raw_results/test.csv"):
+        print("load csv results export ... ")
+
+        field_names = ['sid', 'movie_name', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
+                       'conf_score', 'class_name']
+
+        dict_l = load_csv_as_dict(file_name=filepath, field_names=field_names)
+        print(dict_l)
+
+        self.shot_list = []
+
+    def visualizeShotsWithBB(self, path=None, sid=-1, all_frames_tensors=None, boundingbox_flag=True,
+               save_single_plots_flag=True, plot_flag=False, save_as_video_flag=True):
+        print("plot shot with bounding boxes ... ")
+
+        if(path == None):
+            print("Error: you need to specify a valid path!")
+            exit()
+
+        shot = self.shot_list[sid]
+        shot_frames_tensors = all_frames_tensors[shot.start_pos:shot.end_pos+1, :, :, :]
+        frameSize = (int(shot_frames_tensors[0].size()[1]), int(shot_frames_tensors[0].size()[2]))
+
+        if (save_single_plots_flag == True):
+            if not os.path.exists(path + str(sid)):
+                os.makedirs(path + str(sid))
+
+        if (save_as_video_flag == True):
+            out = cv2.VideoWriter(path + str(sid) + ".avi", cv2.VideoWriter_fourcc(*"MJPG"), 12, frameSize)
+
+        for i in range(0, len(shot_frames_tensors)):
+            frame_id = i + shot.start_pos
+
+            frame = shot_frames_tensors[i]
+            frame_np = np.array(frame).transpose((1, 2, 0))
+            normalized_frame = frame_np.copy()
+            normalized_frame = cv2.normalize(frame_np, normalized_frame, 0, 255, cv2.NORM_MINMAX)
+            normalized_frame = normalized_frame.astype('uint8')
+
+            if (boundingbox_flag == True):
+                for obj in shot.object_list:
+                    if (frame_id == obj.fid):
+                        cv2.rectangle(normalized_frame,  (obj.bb_x1, obj.bb_y1),  (obj.bb_x2, obj.bb_y2), (0, 255, 0), 2)
+
+            if (save_as_video_flag == True):
+                out.write(normalized_frame)
+
+            if (save_single_plots_flag == True):
+                cv2.imwrite(path + str(sid) + "/" + str(frame_id) + ".png", normalized_frame)
+
+            if (plot_flag == True):
+                cv2.imshow("Shot ID:" + str(sid), normalized_frame)
+                cv2.waitKey(10)
+
+        if (save_as_video_flag == True):
+            out.release()
+
+        if (plot_flag == True):
+            cv2.destroyAllWindows()
+
