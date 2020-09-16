@@ -1,22 +1,17 @@
-from od.utils import printCustom, STDOUT_TYPE
 from od.Configuration import Configuration
 from od.Video import Video
 from od.Models import *
 from od.utils import *
-from od.datasets import *
 from od.Shot import Shot
 from od.CustObject import CustObject
 
 import numpy as np
 import os
 import torch
-from PIL import Image
 from torch.autograd import Variable
 from torch.utils import data
 from torchvision import transforms
-import cv2
 
-import json
 
 class OD(object):
     """
@@ -97,7 +92,7 @@ class OD(object):
 
         vid_instance.printVIDInfo()
 
-        # prepare transformation for cnn model
+        # prepare transformation for od model
         preprocess = transforms.Compose([
             transforms.ToPILImage(),
             transforms.Resize((int(vid_instance.height), vid_instance.width)),
@@ -116,7 +111,6 @@ class OD(object):
         all_tensors_l = vid_instance.getAllFrames(preprocess_pytorch=preprocess)
 
         # prepare object detection model
-        Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = Darknet(config_path=self.config_instance.model_config_path,
                         img_size=self.config_instance.resize_dim).to(device)
@@ -149,29 +143,7 @@ class OD(object):
             shot_tensors = all_tensors_l[start:stop + 1, :, :, :]
 
             # run od detector
-            # prepare pytorch dataloader
-            dataset = data.TensorDataset(shot_tensors)  # create your datset
-            inference_dataloader = data.DataLoader(dataset=dataset,
-                                                   batch_size=self.config_instance.batch_size)
-
-            predictions_l = []
-            for i, inputs in enumerate(inference_dataloader):
-                input_batch = inputs[0]
-                input_batch = Variable(input_batch.type(Tensor))
-
-                # move the input and model to GPU for speed if available
-                if torch.cuda.is_available():
-                    input_batch = input_batch.to('cuda')
-                    model.to('cuda')
-
-                model.eval()
-                with torch.no_grad():
-                    nms_thres = 0.4
-                    output = model(input_batch)
-                    detections = non_max_suppression(prediction=output,
-                                                     conf_thres=self.config_instance.confidence_threshold,
-                                                     nms_thres=nms_thres)
-                    predictions_l.extend(detections)
+            predictions_l = self.runModel(model=model, tensor_l=shot_tensors)
 
             # prepare results
             for a in range(0, len(predictions_l)):
@@ -249,6 +221,34 @@ class OD(object):
                  frame-based predictions for a whole shot
         """
 
+        # run od detector
+
+        # prepare pytorch dataloader
+        Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+        dataset = data.TensorDataset(tensor_l)  # create your datset
+        inference_dataloader = data.DataLoader(dataset=dataset,
+                                               batch_size=self.config_instance.batch_size)
+
+        predictions_l = []
+        for i, inputs in enumerate(inference_dataloader):
+            input_batch = inputs[0]
+            input_batch = Variable(input_batch.type(Tensor))
+
+            # move the input and model to GPU for speed if available
+            if torch.cuda.is_available():
+                input_batch = input_batch.to('cuda')
+                model.to('cuda')
+
+            model.eval()
+            with torch.no_grad():
+                nms_thres = 0.4
+                output = model(input_batch)
+                detections = non_max_suppression(prediction=output,
+                                                 conf_thres=self.config_instance.confidence_threshold,
+                                                 nms_thres=nms_thres)
+                predictions_l.extend(detections)
+
+        return predictions_l
 
     def loadSbdResults(self, sbd_results_path):
         """
