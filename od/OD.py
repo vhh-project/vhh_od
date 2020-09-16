@@ -128,8 +128,7 @@ class OD(object):
             # Load checkpoint weights
             model.load_state_dict(torch.load(self.config_instance.path_pre_trained_model))
 
-        tmp_path = "/home/dhelm/VHH_Develop/pycharm_vhh_od/config/yolov3/coco.names"
-        classes = load_classes(tmp_path)  # Extracts class labels from file
+        classes = load_classes(self.config_instance.model_class_names_path)
 
         obj_id = 0
         results_od_l = []
