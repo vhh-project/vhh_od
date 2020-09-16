@@ -145,6 +145,12 @@ class Video(object):
 
         return frame_np
 
+    def getShotFromID(self, sid=-1):
+        for shot in self.shot_list:
+            if(shot.sid == sid):
+                return shot
+        return None
+
     def export2csv(self, filepath=None):
         print("export all results to csv ... ")
 
@@ -157,7 +163,7 @@ class Video(object):
 
         ## export
         field_names = ['sid', 'movie_name', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
-                       'conf_score', 'class_name']
+                       'object_conf', 'class_score', 'class_name']
 
         for shot in self.shot_list:
             dict_l = shot.convertObjectList2Dict()
@@ -177,13 +183,17 @@ class Video(object):
 
     def visualizeShotsWithBB(self, path=None, sid=-1, all_frames_tensors=None, boundingbox_flag=True,
                save_single_plots_flag=True, plot_flag=False, save_as_video_flag=True):
-        print("plot shot with bounding boxes ... ")
+        #print("plot shot with bounding boxes ... ")
 
         if(path == None):
             print("Error: you need to specify a valid path!")
             exit()
 
-        shot = self.shot_list[sid-1]
+        shot = self.getShotFromID(sid=sid)
+        if(shot == None):
+            print("ERROR: shot with specified ID [" + str(sid) + "] is not available!")
+            return -1
+
         shot_frames_tensors = all_frames_tensors[shot.start_pos:shot.end_pos+1, :, :, :]
         frameSize = (int(shot_frames_tensors[0].size()[1]), int(shot_frames_tensors[0].size()[2]))
 
@@ -211,7 +221,22 @@ class Video(object):
             if (boundingbox_flag == True):
                 for obj in shot.object_list:
                     if (frame_id == obj.fid):
-                        cv2.rectangle(normalized_frame,  (obj.bb_x1, obj.bb_y1),  (obj.bb_x2, obj.bb_y2), (0, 255, 0), 2)
+                        cv2.rectangle(normalized_frame,  (obj.bb_x1, obj.bb_y1),  (obj.bb_x2, obj.bb_y2), (0, 255, 0), 1)
+                        font = cv2.FONT_HERSHEY_SIMPLEX
+                        bottomLeftCornerOfText = (int(obj.bb_x1), int(obj.bb_y1) - 3)
+                        fontScale = 0.4
+                        fontColor = (0, 255, 0, 255)
+                        thickness = 1
+                        line_type = cv2.LINE_AA
+                        obj_text = str(obj.object_class_name) + ": " + str(round(obj.object_conf, 2))
+                        cv2.putText(normalized_frame,
+                                    obj_text,
+                                    bottomLeftCornerOfText,
+                                    font,
+                                    fontScale,
+                                    fontColor,
+                                    thickness,
+                                    line_type)
 
             if (save_as_video_flag == True):
                 out.write(normalized_frame)

@@ -72,6 +72,13 @@ class OD(object):
             print("ERROR: there must be at least one shot in the list!")
             exit()
 
+        if (self.config_instance.debug_flag == True):
+            num_shots = 3
+            offset = 22
+        else:
+            num_shots = len(shots_per_vid_np)
+            offset = 0
+
         # load video instance
         vid_name = shots_np[0][1]
         vid_instance = Video()
@@ -79,7 +86,7 @@ class OD(object):
 
         # prepare numpy shot list
         shot_instance = None
-        for s in range(0, len(shots_per_vid_np)):
+        for s in range(offset, offset + num_shots):
             # print(shots_per_vid_np[s])
             shot_instance = Shot(sid=int(s + 1),
                                  movie_name=shots_per_vid_np[s][1],
@@ -88,12 +95,7 @@ class OD(object):
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
-        if (self.config_instance.debug_flag == True):
-            num_shots = 3
-            offset = 22
-        else:
-            num_shots = len(vid_instance.shot_list)
-            offset = 0
+        vid_instance.printVIDInfo()
 
         # prepare transformation for cnn model
         preprocess = transforms.Compose([
@@ -126,9 +128,12 @@ class OD(object):
             # Load checkpoint weights
             model.load_state_dict(torch.load(self.config_instance.path_pre_trained_model))
 
+        tmp_path = "/home/dhelm/VHH_Develop/pycharm_vhh_od/config/yolov3/coco.names"
+        classes = load_classes(tmp_path)  # Extracts class labels from file
+
         obj_id = 0
         results_od_l = []
-        for idx in range(offset + 0, offset + num_shots):
+        for idx in range(0, len(vid_instance.shot_list)):
             shot_id = int(vid_instance.shot_list[idx].sid)
             vid_name = str(vid_instance.shot_list[idx].movie_name)
             start = int(vid_instance.shot_list[idx].start_pos)
@@ -195,10 +200,12 @@ class OD(object):
                         results_od_l.append([obj_id, shot_id, vid_name, start, stop, frame_id,
                                              pred[0], pred[1], pred[2], pred[3], pred[4], pred[5], pred[6]])
 
+                        # (x1, y1, x2, y2, object_conf, class_score, class_pred)
                         obj_instance = CustObject(oid=b+1,
                                                   fid=frame_id,
-                                                  object_class_name="Default",
-                                                  conf_score=pred[4],
+                                                  object_class_name=classes[int(pred[6])],
+                                                  object_conf=pred[4],
+                                                  class_score=pred[5],
                                                   bb_x1=pred[0],
                                                   bb_y1=pred[1],
                                                   bb_x2=pred[2],
@@ -222,12 +229,11 @@ class OD(object):
 
         if (self.config_instance.save_raw_results == True):
             print("shots as videos including bbs")
-
             for shot in vid_instance.shot_list:
                 vid_instance.visualizeShotsWithBB(path=self.config_instance.path_raw_results,
                                                   sid=int(shot.sid),
                                                   all_frames_tensors=all_tensors_l,
-                                                  save_single_plots_flag=False,
+                                                  save_single_plots_flag=True,
                                                   plot_flag=False,
                                                   boundingbox_flag=True,
                                                   save_as_video_flag=True

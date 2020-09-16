@@ -64,7 +64,8 @@ class Shot(object):
                 'bb_y1': obj.bb_y1,
                 'bb_x2': obj.bb_x2,
                 'bb_y2': obj.bb_y2,
-                'conf_score': obj.conf_score,
+                'object_conf': obj.object_conf,
+                'class_score': obj.class_score,
                 'class_name': obj.object_class_name
             }
             dict_l.append(entry_dict)
