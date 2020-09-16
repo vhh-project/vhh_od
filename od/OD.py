@@ -237,7 +237,6 @@ class OD(object):
                                                   boundingbox_flag=True,
                                                   save_as_video_flag=True
                                                   )
-        ''''''
 
     def runModel(self, model, tensor_l):
         """
