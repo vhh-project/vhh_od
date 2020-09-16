@@ -25,7 +25,7 @@ OdCore:
 
   ###
   # This parameter is used to save raw results (e.g. debug visualizations).
-  SAVE_RAW_RESULTS: 1       # 1 ... yes 0 ... no
+  SAVE_RAW_RESULTS: 0       # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the raw results.
   PATH_RAW_RESULTS: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/raw_results/"
