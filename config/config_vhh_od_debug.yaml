@@ -28,7 +28,7 @@ OdCore:
   SAVE_RAW_RESULTS: 0       # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the raw results.
-  PATH_RAW_RESULTS: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/raw_results/"
+  PATH_RAW_RESULTS: "../results/od/raw_results/"
   ###
   # This parameter is used to specify the prefix for the results file.
   PREFIX_RAW_RESULTS: "results_raw_"
@@ -41,7 +41,7 @@ OdCore:
   SAVE_FINAL_RESULTS: 1     # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the final results.
-  PATH_FINAL_RESULTS: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/final_results/"
+  PATH_FINAL_RESULTS: "../results/od/final_results/"
   ###
   # This parameter is used to specify the prefix for the results file.
   PREFIX_FINAL_RESULTS: "results_"
@@ -51,21 +51,21 @@ OdCore:
 
   ###
   # This parameter is used to specify the path to the videos.
-  PATH_VIDEOS: "/data/share/maxrecall_vhh_mmsi/develop/videos/downloaded/"
+  PATH_VIDEOS: "../videos"
 
   ###
   # This parameter is used to specify the path to the pre-trained model.
-  PATH_PRETRAINED_MODEL: "/home/dhelm/VHH_Develop/pycharm_vhh_od/pre_trained_models/yolov3.weights"
+  PATH_PRETRAINED_MODEL: "../config/yolov3/yolov3.weights"
 
   ###
   # yolov3 detector
-  MODEL_CONFIG_PATH: "/home/dhelm/VHH_Develop/pycharm_vhh_od/config/yolov3/yolov3.cfg"
+  MODEL_CONFIG_PATH: "../config/yolov3/yolov3.cfg"
   ###
   # yolov3 detector - confidence threshold
   MODEL_CONF_THRES: 0.8
   ###
   # yolov3 detector - holding list of trained class categories
-  MODEL_CLASS_NAMES_PATH: "/home/dhelm/VHH_Develop/pycharm_vhh_od/config/yolov3/coco.names"
+  MODEL_CLASS_NAMES_PATH: "../config/yolov3/coco.names"
 
 
 Evaluation:

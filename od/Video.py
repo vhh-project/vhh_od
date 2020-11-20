@@ -43,7 +43,7 @@ class Video(object):
         """
 
         #print(vidFile)
-        #printCustom("load video information ... ", STDOUT_TYPE.INFO);
+        printCustom(f"Loading Video \"{vidFile}\"... ", STDOUT_TYPE.INFO)
         self.vidFile = vidFile
         if(self.vidFile == ""):
             #print("A")
@@ -54,7 +54,7 @@ class Video(object):
 
         if(self.vid.isOpened() == False):
             #print("B")
-            print("ERROR: not able to open video file!")
+            print(f"ERROR: not able to open video file \"{vidFile}\"!")
             exit(1)
 
         status, frm = self.vid.read()
@@ -162,7 +162,7 @@ class Video(object):
         remove_csv_export(filepath)
 
         ## export
-        field_names = ['sid', 'movie_name', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
+        field_names = ['movie_name', 'sid', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
                        'object_conf', 'class_score', 'class_name']
 
         for shot in self.shot_list:
@@ -173,7 +173,7 @@ class Video(object):
     def loadCsvExport(self, filepath="/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/raw_results/test.csv"):
         print("load csv results export ... ")
 
-        field_names = ['sid', 'movie_name', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
+        field_names = ['movie_name', 'sid', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
                        'conf_score', 'class_name']
 
         dict_l = load_csv_as_dict(file_name=filepath, field_names=field_names)

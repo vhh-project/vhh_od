@@ -8,7 +8,7 @@ class Shot(object):
     This class is representing a shot. Each instance of this class is holding the properties of one shot.
     """
 
-    def __init__(self, sid, movie_name, start_pos, end_pos):
+    def __init__(self, movie_name, sid, start_pos, end_pos):
         """
         Constructor
 

@@ -25,7 +25,6 @@ class OD(object):
         :param config_file: [required] path to configuration file (e.g. PATH_TO/config.yaml)
                                        must be with extension ".yaml"
         """
-        print("create instance of stc ... ")
 
         if (config_file == ""):
             printCustom("No configuration file specified!", STDOUT_TYPE.ERROR)
@@ -59,6 +58,7 @@ class OD(object):
 
         if(self.config_instance.debug_flag == True):
             # load shot list from result file
+            printCustom(f"Loading SBD Results from \"{self.config_instance.sbd_results_path}\"...", STDOUT_TYPE.INFO)
             shots_np = self.loadSbdResults(self.config_instance.sbd_results_path)
         else:
             shots_np = shots_per_vid_np
@@ -75,7 +75,7 @@ class OD(object):
             offset = 0
 
         # load video instance
-        vid_name = shots_np[0][1]
+        vid_name = shots_np[0][0]
         vid_instance = Video()
         vid_instance.load(os.path.join(self.config_instance.path_videos, vid_name))
 
@@ -84,13 +84,13 @@ class OD(object):
         for s in range(offset, offset + num_shots):
             # print(shots_per_vid_np[s])
             shot_instance = Shot(sid=int(s + 1),
-                                 movie_name=shots_per_vid_np[s][1],
+                                 movie_name=shots_per_vid_np[s][0],
                                  start_pos=int(shots_per_vid_np[s][2]),
                                  end_pos=int(shots_per_vid_np[s][3]))
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
-        vid_instance.printVIDInfo()
+        #vid_instance.printVIDInfo()
 
         # prepare transformation for od model
         preprocess = transforms.Compose([
@@ -108,13 +108,17 @@ class OD(object):
             #                      self.config_instance.std_dev[2] / 255.0))
         ])
 
+        printCustom(f"Preprocessing frames from video...", STDOUT_TYPE.INFO)
         all_tensors_l = vid_instance.getAllFrames(preprocess_pytorch=preprocess)
 
         # prepare object detection model
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        printCustom(f"Initializing Model using \"{self.config_instance.model_config_path}\"...", STDOUT_TYPE.INFO)
         model = Darknet(config_path=self.config_instance.model_config_path,
                         img_size=self.config_instance.resize_dim).to(device)
 
+        printCustom(f"Loading Weights from \"{self.config_instance.path_pre_trained_model}\"...", STDOUT_TYPE.INFO)
         if self.config_instance.path_pre_trained_model.endswith(".weights"):
             # Load darknet weights
             model.load_darknet_weights(self.config_instance.path_pre_trained_model)
@@ -122,23 +126,31 @@ class OD(object):
             # Load checkpoint weights
             model.load_state_dict(torch.load(self.config_instance.path_pre_trained_model))
 
+        printCustom(f"Loading Class Names from \"{self.config_instance.model_class_names_path}\"... ", STDOUT_TYPE.INFO)
         classes = load_classes(self.config_instance.model_class_names_path)
 
         obj_id = 0
         results_od_l = []
+
+        print("\n")
+        printCustom(f"Starting Object Detection... ", STDOUT_TYPE.INFO)
+        printCustom(f"Processing {len(vid_instance.shot_list)} Shots", STDOUT_TYPE.INFO)
+
         for idx in range(0, len(vid_instance.shot_list)):
-            shot_id = int(vid_instance.shot_list[idx].sid)
-            vid_name = str(vid_instance.shot_list[idx].movie_name)
-            start = int(vid_instance.shot_list[idx].start_pos)
-            stop = int(vid_instance.shot_list[idx].end_pos)
+
+            current_shot = vid_instance.shot_list[idx]
+
+            shot_id = int(current_shot.sid)
+            vid_name = str(current_shot.movie_name)
+            start = int(current_shot.start_pos)
+            stop = int(current_shot.end_pos)
 
             if(self.config_instance.debug_flag == True):
                 print("-----")
-                print(shot_id)
-                print(vid_name)
-                print(start)
-                print(stop)
-                print(stop - start)
+                print(f"Video Name: {vid_name}")
+                print(f"Shot ID: {shot_id}")
+                print(f"Start: {start} / Stop: {stop}")
+                print(f"Duration: {stop - start} Frames")
 
             shot_tensors = all_tensors_l[start:stop + 1, :, :, :]
 
@@ -172,6 +184,7 @@ class OD(object):
                                              pred[0], pred[1], pred[2], pred[3], pred[4], pred[5], pred[6]])
 
                         # (x1, y1, x2, y2, object_conf, class_score, class_pred)
+                        # TODO: Insert Object ID here!
                         obj_instance = CustObject(oid=b+1,
                                                   fid=frame_id,
                                                   object_class_name=classes[int(pred[6])],
@@ -195,8 +208,15 @@ class OD(object):
             vid_instance.printVIDInfo()
 
         if (self.config_instance.save_final_results == True):
-            vid_instance.export2csv(filepath=self.config_instance.path_final_results + vid_name.split('.')[0] + "." +
-                                    self.config_instance.path_postfix_final_results)
+
+            results_path = self.config_instance.path_final_results
+
+            if not os.path.isdir(results_path):
+                os.makedirs(results_path)
+                printCustom(f"Created results folder \"{results_path}\"", STDOUT_TYPE.INFO)
+
+            filepath = f"{results_path}{vid_name.split('.')[0]}.{self.config_instance.path_postfix_final_results}"
+            vid_instance.export2csv(filepath=filepath)
 
         if (self.config_instance.save_raw_results == True):
             print("shots as videos including bbs")
