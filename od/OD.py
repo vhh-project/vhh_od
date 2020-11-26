@@ -41,10 +41,12 @@ class OD(object):
             print("DEBUG MODE activated!")
             self.debug_results = "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/develop/"
 
-        printCustom(f"Initializing Deep Sort Tracker...", STDOUT_TYPE.INFO)
-        self.use_tracker=True
-        self.tracker = DeepSort(model_path="../deep_sort/deep/checkpoint/ckpt.t7")
-        printCustom(f"Deep Sort Tracker initialized successfully!", STDOUT_TYPE.INFO)
+        self.use_tracker = False
+
+        if self.use_tracker:
+            printCustom(f"Initializing Deep Sort Tracker...", STDOUT_TYPE.INFO)
+            self.tracker = DeepSort(model_path="../deep_sort/deep/checkpoint/ckpt.t7")
+            printCustom(f"Deep Sort Tracker initialized successfully!", STDOUT_TYPE.INFO)
 
         self.num_colors = 10
         self.color_map = cm.get_cmap('gist_rainbow', self.num_colors)
@@ -154,8 +156,6 @@ class OD(object):
             shot_tensors = shot_frames["Tensors"]
             images_orig = shot_frames["Images"]
 
-            obj_id = 0
-
             current_shot = shot_frames["ShotInfo"]
 
             shot_id = int(current_shot.sid)
@@ -174,12 +174,14 @@ class OD(object):
             predictions_l = self.runModel(model=model, tensor_l=shot_tensors)
 
             # reset tracker for every new shot
-            self.tracker.reset()
+            if self.use_tracker:
+                self.tracker.reset()
 
-            # prepare results
+            # for each frame, track predictions and store results
             for a in range(0, len(predictions_l)):
                 frame_id = start + a
                 frame_based_predictions = predictions_l[a]
+                obj_id = 0
 
                 if(self.config_instance.debug_flag == True):
                     print("##################################################################################")
@@ -195,19 +197,18 @@ class OD(object):
                         print(tmp)
                 else:
 
-                    # calculate factors for rescaling bounding boxes
+                    # rescale bounding boxes to fit original video resolution
                     im = cv2.cvtColor(images_orig[a], cv2.COLOR_BGR2RGB)
                     y_factor = im.shape[0] / resized_dim_y
                     x_factor = im.shape[1] / resized_dim_x
+                    x = (frame_based_predictions[:, 0]).cpu().numpy() * x_factor
+                    y = (frame_based_predictions[:, 1]).cpu().numpy() * y_factor
+                    w = (frame_based_predictions[:, 2]).cpu().numpy() * x_factor - x
+                    h = (frame_based_predictions[:, 3]).cpu().numpy() * y_factor - y
 
                     if self.use_tracker:
-                        print(frame_based_predictions.shape)
 
                         # Convert BBoxes from XYXY (corner points) to XYWH (center + width/height) representation
-                        x = (frame_based_predictions[:, 0]).cpu().numpy()*x_factor
-                        y = (frame_based_predictions[:, 1]).cpu().numpy()*y_factor
-                        w = (frame_based_predictions[:, 2]).cpu().numpy()*x_factor - x
-                        h = (frame_based_predictions[:, 3]).cpu().numpy()*y_factor - y
                         x = x+w/2
                         y = y+h/2
                         bbox_xywh = np.array([[x[i],y[i],w[i],h[i]] for i in range(len(frame_based_predictions))])
@@ -218,26 +219,31 @@ class OD(object):
 
                         # Track Objects using Deep Sort tracker
                         # Tracker expects Input as XYWH but returns Boxes as XYXY
-                        outputs = self.tracker.update(bbox_xywh, cls_conf, class_predictions, im)
-                        print(f"Outputs:\n{outputs}")
+                        tracking_results = np.array(self.tracker.update(bbox_xywh, cls_conf, class_predictions, im))
+                        num_results = len(tracking_results)
+                        #print(f"Outputs:\n{tracking_results}")
 
-                        #for box in bbox_xywh:
-                        #    x1 = int(box[0])
-                        #    x2 = int(x1 + box[2])
-                        #    y1 = int(box[1])
-                        #    y2 = int(y1 + box[3])
-                        #    color = (0, 255, 0)
-                        #    im = cv2.rectangle(im, (x1, y1), (x2, y2), color, 5)
+                        if num_results > 0:
+                            x1_list = tracking_results[:,0]
+                            x2_list = tracking_results[:,2]
+                            y1_list = tracking_results[:,1]
+                            y2_list = tracking_results[:,3]
+                            ids = tracking_results[:,4]
+                            object_classes = tracking_results[:,5]
+                            object_confs = None
+                            class_confs = None
 
+                        # visualization
+                        '''
                         num_colors = 10
                         color_map = cm.get_cmap('gist_rainbow', num_colors)
 
                         if len(outputs) > 0:
                             for box in outputs:
-                                x1 = int(box[0])
-                                x2 = int(box[2])
-                                y1 = int(box[1])
-                                y2 = int(box[3])
+                                x1v = int(box[0])
+                                x2v = int(box[2])
+                                y1v = int(box[1])
+                                y2v = int(box[3])
 
                                 color_idx = box[4] % self.num_colors
                                 color = color_map(color_idx)[0:3]
@@ -250,45 +256,79 @@ class OD(object):
                                 text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_size , font_thickness)[0]
 
                                 # draw bounding box
-                                im = cv2.rectangle(im, (x1, y1), (x2, y2), color, 5)
+                                im = cv2.rectangle(im, (x1v, y1v), (x2v, y2v), color, 5)
 
                                 # draw text and background
-                                cv2.rectangle(im, (x1, y1), (x1 + text_size[0] + 3, y1 + text_size[1] + 4), color, -1)
-                                cv2.putText(im, label, (x1, y1 + text_size[1]), cv2.FONT_HERSHEY_SIMPLEX, font_size,
+                                cv2.rectangle(im, (x1v, y1v), (x1v + text_size[0] + 3, y1v + text_size[1] + 4), color, -1)
+                                cv2.putText(im, label, (x1v, y1v + text_size[1]), cv2.FONT_HERSHEY_SIMPLEX, font_size,
                                             [0, 0, 0], font_thickness)
 
                             cv2.imshow("im", im)
                             cv2.waitKey()
+                            '''
+
+                    else:
+                        # if no tracker is used, store the detection results
+                        x1_list = x
+                        x2_list = x + w
+                        y1_list = y
+                        y2_list = y + h
+                        ids = None
+                        object_confs = frame_based_predictions[:,4].cpu().numpy()
+                        class_confs = frame_based_predictions[:,5].cpu().numpy()
+                        object_classes = frame_based_predictions[:, 6].cpu().numpy()
+                        num_results = len(frame_based_predictions)
 
 
+                    # store predictions for each object in the frame
+                    for object_idx in range(0, num_results):
 
-                    #print(str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + str(stop) + ";" + str(frame_id))
-                    for b in range(0, len(frame_based_predictions)):
-                        obj_id = obj_id + 1
-                        pred = frame_based_predictions[b]
-                        pred = np.array(pred)
-                        results_od_l.append([obj_id, shot_id, vid_name, start, stop, frame_id,
-                                             pred[0], pred[1], pred[2], pred[3], pred[4], pred[5], pred[6]])
+                        x1 = int(x1_list[object_idx])
+                        x2 = int(x2_list[object_idx])
+                        y1 = int(y1_list[object_idx])
+                        y2 = int(y2_list[object_idx])
+
+                        if ids is None:
+                            instance_id = obj_id
+                            obj_id = obj_id + 1
+                        else:
+                            instance_id = ids[object_idx]
+
+                        if object_confs is None:
+                            obj_conf = "N/A"
+                        else:
+                            obj_conf = object_confs[object_idx]
+
+                        if class_confs is None:
+                            class_conf = "N/A"
+                        else:
+                            class_conf = class_confs[object_idx]
+
+                        class_idx = int(object_classes[object_idx])
+                        class_name = classes[class_idx]
+
+                        results_od_l.append([instance_id, shot_id, vid_name, start, stop, frame_id,
+                                             x1, y1, x2, y2, obj_conf, class_conf, class_idx])
 
                         # (x1, y1, x2, y2, object_conf, class_score, class_pred)
                         # TODO: Insert Object ID here!
-                        obj_instance = CustObject(oid=b+1,
+                        obj_instance = CustObject(oid=instance_id,
                                                   fid=frame_id,
-                                                  object_class_name=classes[int(pred[6])],
-                                                  object_conf=pred[4],
-                                                  class_score=pred[5],
-                                                  bb_x1=pred[0],
-                                                  bb_y1=pred[1],
-                                                  bb_x2=pred[2],
-                                                  bb_y2=pred[3]
+                                                  object_class_name=class_name,
+                                                  object_conf=obj_conf,
+                                                  class_score=class_conf,
+                                                  bb_x1=x1,
+                                                  bb_y1=y1,
+                                                  bb_x2=x2,
+                                                  bb_y2=y2
                                                   )
                         current_shot.addCustomObject(obj_instance)
 
                         if (self.config_instance.debug_flag == True):
                             tmp = str(obj_id) + ";" + str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + \
-                                  str(stop) + ";" + str(frame_id) + ";" + str(pred[0]) + ";" + str(pred[1]) + ";" + \
-                                  str(pred[2]) + ";" + str(pred[3]) + ";" + str(pred[4]) + ";" + str(pred[5]) + ";" + \
-                                  str(pred[6])
+                                  str(stop) + ";" + str(frame_id) + ";" + str(x1) + ";" + str(y1) + ";" + \
+                                  str(x2) + ";" + str(y2) + ";" + str(obj_conf) + ";" + str(class_conf) + ";" + \
+                                  str(class_idx)
                             print(tmp)
                 ''''''
         if (self.config_instance.debug_flag == True):
@@ -306,6 +346,10 @@ class OD(object):
             vid_instance.export2csv(filepath=filepath)
 
         if (self.config_instance.save_raw_results == True):
+
+            # TODO: does not work with shot-based loading, remake
+            exit()
+
             print("shots as videos including bbs")
 
             results_path = self.config_instance.path_raw_results
