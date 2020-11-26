@@ -117,6 +117,27 @@ class Video(object):
             all_tensors_l = torch.stack(frame_l)
             return {"Tensors": all_tensors_l, "Images" : frames_orig}
 
+    # generator for loading Video Frame by Frame
+    def loadVideoByFrame(self, preprocess_pytorch=None):
+
+        cap = cv2.VideoCapture(self.vidFile)
+
+        cnt = 0
+        while (True):
+            cnt = cnt + 1
+            ret, frame_orig = cap.read()
+
+            if (ret == True):
+                if(preprocess_pytorch is not None):
+                    frame_processed = preprocess_pytorch(frame_orig)
+                else:
+                    frame_processed = None
+                frame_orig = cv2.cvtColor(frame_orig, cv2.COLOR_BGR2RGB)
+                yield {"Tensors": frame_processed, "Images" : frame_orig}
+            else:
+                break
+        cap.release()
+
     # Returns Video Shot by Shot
     def getFramesByShots(self, preprocess_pytorch=None):
 
