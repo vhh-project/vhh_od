@@ -5,8 +5,12 @@ from od.utils import *
 from od.Shot import Shot
 from od.CustObject import CustObject
 
+from deep_sort.deep_sort import DeepSort
+
 import numpy as np
 import os
+import cv2
+from matplotlib import cm
 import torch
 from torch.autograd import Variable
 from torch.utils import data
@@ -36,6 +40,15 @@ class OD(object):
         if (self.config_instance.debug_flag == True):
             print("DEBUG MODE activated!")
             self.debug_results = "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/develop/"
+
+        printCustom(f"Initializing Deep Sort Tracker...", STDOUT_TYPE.INFO)
+        self.use_tracker=True
+        self.tracker = DeepSort(model_path="../deep_sort/deep/checkpoint/ckpt.t7")
+        printCustom(f"Deep Sort Tracker initialized successfully!", STDOUT_TYPE.INFO)
+
+        self.num_colors = 10
+        self.color_map = cm.get_cmap('gist_rainbow', self.num_colors)
+
 
     def runOnSingleVideo(self, shots_per_vid_np=None, max_recall_id=-1):
         """
@@ -90,26 +103,6 @@ class OD(object):
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
-        #vid_instance.printVIDInfo()
-
-        # prepare transformation for od model
-        preprocess = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.Resize((int(vid_instance.height), vid_instance.width)),
-            transforms.CenterCrop((int(vid_instance.height), int(vid_instance.height))),
-            transforms.Resize(self.config_instance.resize_dim),
-            #ToGrayScale(),
-            transforms.ToTensor(),
-            #transforms.Normalize((self.config_instance.mean_values[0] / 255.0,
-            #                      self.config_instance.mean_values[1] / 255.0,
-            #                      self.config_instance.mean_values[2] / 255.0),
-            #                     (self.config_instance.std_dev[0] / 255.0,
-            #                      self.config_instance.std_dev[1] / 255.0,
-            #                      self.config_instance.std_dev[2] / 255.0))
-        ])
-
-        printCustom(f"Preprocessing frames from video...", STDOUT_TYPE.INFO)
-        all_tensors_l = vid_instance.getAllFrames(preprocess_pytorch=preprocess)
 
         # prepare object detection model
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -129,16 +122,41 @@ class OD(object):
         printCustom(f"Loading Class Names from \"{self.config_instance.model_class_names_path}\"... ", STDOUT_TYPE.INFO)
         classes = load_classes(self.config_instance.model_class_names_path)
 
-        obj_id = 0
+        # prepare transformation for od model
+        preprocess = transforms.Compose([
+            transforms.ToPILImage(),
+            # transforms.Resize((int(vid_instance.height), vid_instance.width)),
+            # transforms.CenterCrop((int(vid_instance.height), int(vid_instance.height))),
+            transforms.Resize(self.config_instance.resize_dim),
+            # ToGrayScale(),
+            transforms.ToTensor(),
+            # transforms.Normalize((self.config_instance.mean_values[0] / 255.0,
+            #                      self.config_instance.mean_values[1] / 255.0,
+            #                      self.config_instance.mean_values[2] / 255.0),
+            #                     (self.config_instance.std_dev[0] / 255.0,
+            #                      self.config_instance.std_dev[1] / 255.0,
+            #                      self.config_instance.std_dev[2] / 255.0))
+        ])
+
+        resized_dim_y = self.config_instance.resize_dim[0]
+        resized_dim_x = self.config_instance.resize_dim[1]
+
+        # Old solution for retrieving all frames at once
+        # frames = vid_instance.getAllFrames(preprocess_pytorch=preprocess)
+        # all_tensors_l = frames["Tensors"]
+        # images_orig = frames["Images"]
+
+        printCustom(f"Starting Object Detection... ", STDOUT_TYPE.INFO)
+        printCustom(f"Executing on device {device}...", STDOUT_TYPE.INFO)
         results_od_l = []
 
-        print("\n")
-        printCustom(f"Starting Object Detection... ", STDOUT_TYPE.INFO)
-        printCustom(f"Processing {len(vid_instance.shot_list)} Shots", STDOUT_TYPE.INFO)
+        for shot_frames in vid_instance.getFramesByShots(preprocess_pytorch=preprocess):
+            shot_tensors = shot_frames["Tensors"]
+            images_orig = shot_frames["Images"]
 
-        for idx in range(0, len(vid_instance.shot_list)):
+            obj_id = 0
 
-            current_shot = vid_instance.shot_list[idx]
+            current_shot = shot_frames["ShotInfo"]
 
             shot_id = int(current_shot.sid)
             vid_name = str(current_shot.movie_name)
@@ -152,14 +170,15 @@ class OD(object):
                 print(f"Start: {start} / Stop: {stop}")
                 print(f"Duration: {stop - start} Frames")
 
-            shot_tensors = all_tensors_l[start:stop + 1, :, :, :]
-
             # run od detector
             predictions_l = self.runModel(model=model, tensor_l=shot_tensors)
 
+            # reset tracker for every new shot
+            self.tracker.reset()
+
             # prepare results
             for a in range(0, len(predictions_l)):
-                frame_id = vid_instance.shot_list[idx].start_pos + a
+                frame_id = start + a
                 frame_based_predictions = predictions_l[a]
 
                 if(self.config_instance.debug_flag == True):
@@ -175,6 +194,74 @@ class OD(object):
                             None) + ";" + str(None) + ";" + str(None) + ";" + str(None) + ";" + str(None)
                         print(tmp)
                 else:
+
+                    # calculate factors for rescaling bounding boxes
+                    im = cv2.cvtColor(images_orig[a], cv2.COLOR_BGR2RGB)
+                    y_factor = im.shape[0] / resized_dim_y
+                    x_factor = im.shape[1] / resized_dim_x
+
+                    if self.use_tracker:
+                        print(frame_based_predictions.shape)
+
+                        # Convert BBoxes from XYXY (corner points) to XYWH (center + width/height) representation
+                        x = (frame_based_predictions[:, 0]).cpu().numpy()*x_factor
+                        y = (frame_based_predictions[:, 1]).cpu().numpy()*y_factor
+                        w = (frame_based_predictions[:, 2]).cpu().numpy()*x_factor - x
+                        h = (frame_based_predictions[:, 3]).cpu().numpy()*y_factor - y
+                        x = x+w/2
+                        y = y+h/2
+                        bbox_xywh = np.array([[x[i],y[i],w[i],h[i]] for i in range(len(frame_based_predictions))])
+
+                        # get class confidences
+                        cls_conf = frame_based_predictions[:, 5].cpu().numpy()
+                        class_predictions = frame_based_predictions[:, 6].cpu().numpy()
+
+                        # Track Objects using Deep Sort tracker
+                        # Tracker expects Input as XYWH but returns Boxes as XYXY
+                        outputs = self.tracker.update(bbox_xywh, cls_conf, class_predictions, im)
+                        print(f"Outputs:\n{outputs}")
+
+                        #for box in bbox_xywh:
+                        #    x1 = int(box[0])
+                        #    x2 = int(x1 + box[2])
+                        #    y1 = int(box[1])
+                        #    y2 = int(y1 + box[3])
+                        #    color = (0, 255, 0)
+                        #    im = cv2.rectangle(im, (x1, y1), (x2, y2), color, 5)
+
+                        num_colors = 10
+                        color_map = cm.get_cmap('gist_rainbow', num_colors)
+
+                        if len(outputs) > 0:
+                            for box in outputs:
+                                x1 = int(box[0])
+                                x2 = int(box[2])
+                                y1 = int(box[1])
+                                y2 = int(box[3])
+
+                                color_idx = box[4] % self.num_colors
+                                color = color_map(color_idx)[0:3]
+                                color = tuple([int(color[i] * 255) for i in range(len(color))])
+
+                                class_name = classes[int(box[5])]
+                                label = f"{class_name} {box[4]}"
+                                font_size = 0.5
+                                font_thickness = 1
+                                text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_size , font_thickness)[0]
+
+                                # draw bounding box
+                                im = cv2.rectangle(im, (x1, y1), (x2, y2), color, 5)
+
+                                # draw text and background
+                                cv2.rectangle(im, (x1, y1), (x1 + text_size[0] + 3, y1 + text_size[1] + 4), color, -1)
+                                cv2.putText(im, label, (x1, y1 + text_size[1]), cv2.FONT_HERSHEY_SIMPLEX, font_size,
+                                            [0, 0, 0], font_thickness)
+
+                            cv2.imshow("im", im)
+                            cv2.waitKey()
+
+
+
                     #print(str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + str(stop) + ";" + str(frame_id))
                     for b in range(0, len(frame_based_predictions)):
                         obj_id = obj_id + 1
@@ -195,7 +282,7 @@ class OD(object):
                                                   bb_x2=pred[2],
                                                   bb_y2=pred[3]
                                                   )
-                        vid_instance.shot_list[idx].addCustomObject(obj_instance)
+                        current_shot.addCustomObject(obj_instance)
 
                         if (self.config_instance.debug_flag == True):
                             tmp = str(obj_id) + ";" + str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + \
@@ -220,8 +307,15 @@ class OD(object):
 
         if (self.config_instance.save_raw_results == True):
             print("shots as videos including bbs")
+
+            results_path = self.config_instance.path_raw_results
+
+            if not os.path.isdir(results_path):
+                os.makedirs(results_path)
+                printCustom(f"Created results folder \"{results_path}\"", STDOUT_TYPE.INFO)
+
             for shot in vid_instance.shot_list:
-                vid_instance.visualizeShotsWithBB(path=self.config_instance.path_raw_results,
+                vid_instance.visualizeShotsWithBB(path=results_path,
                                                   sid=int(shot.sid),
                                                   all_frames_tensors=all_tensors_l,
                                                   save_single_plots_flag=True,

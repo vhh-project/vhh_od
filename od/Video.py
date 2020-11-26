@@ -92,24 +92,70 @@ class Video(object):
         cap = cv2.VideoCapture(self.vidFile)
 
         frame_l = []
+        frames_orig = []
+
         cnt = 0
         while (True):
             cnt = cnt + 1
-            ret, frame = cap.read()
+            ret, frame_orig = cap.read()
+
             # print(cnt)
             # print(ret)
             # print(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             if (ret == True):
                 if(preprocess_pytorch is not None):
-                    frame = preprocess_pytorch(frame)
+                    frame = preprocess_pytorch(frame_orig)
                 frame_l.append(frame)  # .transpose((2,0,1)
+
+                # Deep Sort Tracker needs original image in RGB Space
+                frames_orig.append(cv2.cvtColor(frame_orig, cv2.COLOR_BGR2RGB))
             else:
                 break
         cap.release()
 
         if (preprocess_pytorch is not None):
             all_tensors_l = torch.stack(frame_l)
-            return all_tensors_l
+            return {"Tensors": all_tensors_l, "Images" : frames_orig}
+
+    # Returns Video Shot by Shot
+    def getFramesByShots(self, preprocess_pytorch=None):
+        # read all frames of video
+        cap = cv2.VideoCapture(self.vidFile)
+
+        cnt = 0
+        for shot in self.shot_list:
+
+            frame_l = []
+            frames_orig = []
+            end_pos = shot.end_pos
+            frames_in_shot = 0
+
+            print(f"Retrieving Frames for Shot {shot.sid} (frames {cnt} to {end_pos})...")
+
+            while (cnt <= end_pos):
+                cnt = cnt + 1
+                frames_in_shot += 1
+                ret, frame_orig = cap.read()
+
+                if (ret == True):
+                    if(preprocess_pytorch is not None):
+                        frame = preprocess_pytorch(frame_orig)
+                        frame_l.append(frame)  # .transpose((2,0,1)
+
+                    # Deep Sort Tracker needs original image in RGB Space
+                    frames_orig.append(cv2.cvtColor(frame_orig, cv2.COLOR_BGR2RGB))
+                else:
+                    break
+
+            if (preprocess_pytorch is not None):
+                all_tensors_l = torch.stack(frame_l)
+                yield {"Tensors": all_tensors_l, "Images" : frames_orig, "ShotInfo" : shot}
+            else:
+                yield {"Tensors": None, "Images": frames_orig, "ShotInfo" : shot}
+
+        cap.release()
+
+
 
     def getFrame(self, frame_id):
         """
