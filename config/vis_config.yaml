@@ -1,0 +1,19 @@
+###
+# Number of distinct colors for distinguishing tracked instances. Must be > 0
+NUM_COLORS: 10
+
+###
+# Colormap for sampling distinct colors for distinguishing tracked instances
+COLORMAP: gist_rainbow
+
+###
+# Constant Color Value for non-tracked object detection results
+CONST_COLOR: 0,255,0
+
+###
+# Label Font Size. Must be > 0
+FONT_SIZE: 0.5
+
+###
+# Label Font Thickness. Must be > 0
+FONT_THICKNESS: 1

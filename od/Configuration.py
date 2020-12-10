@@ -61,6 +61,7 @@ class Configuration:
         self.model_config_path = None
         self.confidence_threshold = -1
         self.model_class_names_path = None
+        self.model_class_selection_path = None
 
     def loadConfig(self):
         """
@@ -105,6 +106,7 @@ class Configuration:
 
         self.confidence_threshold = float(od_core_config['MODEL_CONF_THRES'])
         self.model_class_names_path = od_core_config['MODEL_CLASS_NAMES_PATH']
+        self.model_class_selection_path = od_core_config['MODEL_CLASS_SELECTION_PATH']
 
         # evaluation section
         self.path_raw_results_eval = evaluation_config['PATH_RAW_RESULTS']

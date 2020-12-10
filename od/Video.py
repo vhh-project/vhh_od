@@ -223,7 +223,8 @@ class Video(object):
         return None
 
     def export2csv(self, filepath=None):
-        print("export all results to csv ... ")
+
+        printCustom(f"Exporting results to CSV \"{filepath}\'", type=STDOUT_TYPE.INFO)
 
         if(filepath == None):
             print("ERROR: You have to specify a vailid path! csv export aborted!")

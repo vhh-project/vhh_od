@@ -4,6 +4,7 @@ from od.Models import *
 from od.utils import *
 from od.Shot import Shot
 from od.CustObject import CustObject
+from od.visualize import visualize_video
 
 from deep_sort.deep_sort import DeepSort
 
@@ -41,6 +42,7 @@ class OD(object):
             print("DEBUG MODE activated!")
             self.debug_results = "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/develop/"
 
+        # TODO: this in Config
         self.use_tracker = False
 
         if self.use_tracker:
@@ -124,6 +126,10 @@ class OD(object):
         printCustom(f"Loading Class Names from \"{self.config_instance.model_class_names_path}\"... ", STDOUT_TYPE.INFO)
         classes = load_classes(self.config_instance.model_class_names_path)
 
+        printCustom(f"Loading Class Selection from \"{self.config_instance.model_class_selection_path}\"... ", STDOUT_TYPE.INFO)
+        class_selection = load_classes(self.config_instance.model_class_selection_path)
+        printCustom(f"Classes of interest: {class_selection}", STDOUT_TYPE.INFO)
+
         # prepare transformation for od model
         preprocess = transforms.Compose([
             transforms.ToPILImage(),
@@ -148,8 +154,7 @@ class OD(object):
         # all_tensors_l = frames["Tensors"]
         # images_orig = frames["Images"]
 
-        printCustom(f"Starting Object Detection... ", STDOUT_TYPE.INFO)
-        printCustom(f"Executing on device {device}...", STDOUT_TYPE.INFO)
+        printCustom(f"Starting Object Detection (Executing on device {device})... ", STDOUT_TYPE.INFO)
         results_od_l = []
 
         for shot_frames in vid_instance.getFramesByShots(preprocess_pytorch=preprocess):
@@ -171,7 +176,9 @@ class OD(object):
                 print(f"Duration: {stop - start} Frames")
 
             # run od detector
-            predictions_l = self.runModel(model=model, tensor_l=shot_tensors)
+            predictions_l = self.runModel(model=model, tensor_l=shot_tensors, classes=classes, class_filter=class_selection)
+
+            #print(predictions_l)
 
             # reset tracker for every new shot
             if self.use_tracker:
@@ -238,8 +245,8 @@ class OD(object):
                         num_colors = 10
                         color_map = cm.get_cmap('gist_rainbow', num_colors)
 
-                        if len(outputs) > 0:
-                            for box in outputs:
+                        if len(tracking_results) > 0:
+                            for box in tracking_results:
                                 x1v = int(box[0])
                                 x2v = int(box[2])
                                 y1v = int(box[1])
@@ -265,7 +272,8 @@ class OD(object):
 
                             cv2.imshow("im", im)
                             cv2.waitKey()
-                            '''
+                        '''
+
 
                     else:
                         # if no tracker is used, store the detection results
@@ -311,7 +319,6 @@ class OD(object):
                                              x1, y1, x2, y2, obj_conf, class_conf, class_idx])
 
                         # (x1, y1, x2, y2, object_conf, class_score, class_pred)
-                        # TODO: Insert Object ID here!
                         obj_instance = CustObject(oid=instance_id,
                                                   fid=frame_id,
                                                   object_class_name=class_name,
@@ -334,6 +341,8 @@ class OD(object):
         if (self.config_instance.debug_flag == True):
             vid_instance.printVIDInfo()
 
+        final_csv_path = None
+
         if (self.config_instance.save_final_results == True):
 
             results_path = self.config_instance.path_final_results
@@ -343,14 +352,10 @@ class OD(object):
                 printCustom(f"Created results folder \"{results_path}\"", STDOUT_TYPE.INFO)
 
             filepath = f"{results_path}{vid_name.split('.')[0]}.{self.config_instance.path_postfix_final_results}"
+            final_csv_path = filepath
             vid_instance.export2csv(filepath=filepath)
 
-        if (self.config_instance.save_raw_results == True):
-
-            # TODO: does not work with shot-based loading, remake
-            exit()
-
-            print("shots as videos including bbs")
+        if (self.config_instance.save_raw_results == True and final_csv_path is not None):
 
             results_path = self.config_instance.path_raw_results
 
@@ -358,6 +363,9 @@ class OD(object):
                 os.makedirs(results_path)
                 printCustom(f"Created results folder \"{results_path}\"", STDOUT_TYPE.INFO)
 
+            visualize_video(vid_instance, final_csv_path, results_path)
+
+            '''
             for shot in vid_instance.shot_list:
                 vid_instance.visualizeShotsWithBB(path=results_path,
                                                   sid=int(shot.sid),
@@ -366,9 +374,9 @@ class OD(object):
                                                   plot_flag=False,
                                                   boundingbox_flag=True,
                                                   save_as_video_flag=True
-                                                  )
+                                                  ) '''
 
-    def runModel(self, model, tensor_l):
+    def runModel(self, model, tensor_l, classes, class_filter):
         """
         Method to calculate stc predictions of specified model and given list of tensor images (pytorch).
 
@@ -401,10 +409,37 @@ class OD(object):
             with torch.no_grad():
                 nms_thres = 0.4
                 output = model(input_batch)
-                detections = non_max_suppression(prediction=output,
+                batch_detections = non_max_suppression(prediction=output,
                                                  conf_thres=self.config_instance.confidence_threshold,
                                                  nms_thres=nms_thres)
-                predictions_l.extend(detections)
+
+                #predictions_l.extend(batch_detections)
+                #continue
+
+                for frame_detection in batch_detections:
+
+                    filtered_detection = None
+
+                    if frame_detection is not None:
+
+                        for i in range(len(frame_detection)):
+
+                            detected_object = frame_detection[i]
+                            class_idx = detected_object[6].int().item()
+                            #print(f"{classes[class_idx]} in {class_filter}?")
+
+                            if classes[class_idx] in class_filter:
+                                #print(f"Detected {classes[class_idx]}")
+
+                                if filtered_detection is None:
+                                    filtered_detection = detected_object.unsqueeze(dim=0)
+                                else:
+                                    filtered_detection = torch.cat([filtered_detection, detected_object.unsqueeze(dim=0)], dim=0)
+
+                        #print(frame_detection)
+                        #print(filtered_detection)
+
+                    predictions_l.append(filtered_detection)
 
         return predictions_l
 

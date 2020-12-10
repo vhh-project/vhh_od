@@ -66,6 +66,9 @@ OdCore:
   ###
   # yolov3 detector - holding list of trained class categories
   MODEL_CLASS_NAMES_PATH: "../config/yolov3/coco.names"
+  ###
+  # yolov3 detector - holding list of trained class categories
+  MODEL_CLASS_SELECTION_PATH: "../config/yolov3/class.selection"
 
 
 Evaluation:
