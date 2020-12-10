@@ -63,6 +63,15 @@ class Configuration:
         self.model_class_names_path = None
         self.model_class_selection_path = None
 
+        self.use_deepsort = -1
+        self.ds_model_path = None
+        self.ds_max_dist = -1
+        self.ds_min_conf = -1
+        self.ds_nms_max_overlap = -1
+        self.ds_max_iou_dist = -1
+        self.ds_max_age = -1
+        self.ds_num_init = -1
+
     def loadConfig(self):
         """
         Method to load configurables from the specified configuration file
@@ -107,6 +116,19 @@ class Configuration:
         self.confidence_threshold = float(od_core_config['MODEL_CONF_THRES'])
         self.model_class_names_path = od_core_config['MODEL_CLASS_NAMES_PATH']
         self.model_class_selection_path = od_core_config['MODEL_CLASS_SELECTION_PATH']
+
+        #DeepSort Parameters
+        if od_core_config["USE_DEEPSORT"] == "1":
+            self.use_deepsort = True
+        else:
+            self.use_deepsort = False
+        self.ds_model_path = od_core_config["DEEPSORT_MODEL_PATH"]
+        self.ds_max_dist = float(od_core_config["DS_MAX_DIST"])
+        self.ds_min_conf = float(od_core_config["DS_MIN_CONF"])
+        self.ds_nms_max_overlap = float(od_core_config["DS_NMS_MAX_OVERLAP"])
+        self.ds_max_iou_dist = float(od_core_config["DS_MAX_IOU_DIST"])
+        self.ds_max_age = int(od_core_config["DS_MAX_AGE"])
+        self.ds_num_init = int(od_core_config["DS_NUM_INIT"])
 
         # evaluation section
         self.path_raw_results_eval = evaluation_config['PATH_RAW_RESULTS']

@@ -14,13 +14,6 @@ __all__ = ['DeepSort']
 class DeepSort(object):
     def __init__(self, model_path, max_dist=0.2, min_confidence=0.3, nms_max_overlap=0.5, max_iou_distance=0.7, max_age=70, n_init=3, use_cuda=True):
 
-        print(f"max_dist {max_dist}")
-        print(f"min_confidence {min_confidence}")
-        print(f"nms_max_overlap {nms_max_overlap}")
-        print(f"max_iou_distance {max_iou_distance}")
-        print(f"max_age {max_age}")
-        print(f"n_init {n_init}")
-
         self.min_confidence = min_confidence
         self.nms_max_overlap = nms_max_overlap
 

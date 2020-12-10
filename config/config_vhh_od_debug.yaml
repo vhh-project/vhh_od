@@ -69,6 +69,31 @@ OdCore:
   ###
   # yolov3 detector - holding list of trained class categories
   MODEL_CLASS_SELECTION_PATH: "../config/yolov3/class.selection"
+  
+  ###
+  # Parameters for DeepSort Tracker
+  USE_DEEPSORT: 1
+  ###
+  # Path to DeepSort Model Checkpoint
+  DEEPSORT_MODEL_PATH: "../deep_sort/deep/checkpoint/ckpt.t7"
+  ###
+  # Maximum Distance for Nearest Neighbour Cosine Metric. Must be a float >= 0
+  DS_MAX_DIST: 0.2
+  ###
+  # Minimum Confidence to accept an Object. Must be a float between 0 and 1.
+  DS_MIN_CONF: 0.3
+  ###
+  # Maximum overlap for Non-Maximum Suppression. Must be a float >= 0
+  DS_NMS_MAX_OVERLAP: 0.5
+  ###
+  # Maximum allowed IoU distance for tracking. Must be a float >= 0
+  DS_MAX_IOU_DIST: 0.7
+  ###
+  # Maximum number of missed misses before a track is deleted. Must be an integer >= 0
+  DS_MAX_AGE: 70
+  ###
+  # Number of frames that a track remains in initialization phase. Tracking starts if object has been detected x times. Must be an integer >= 0
+  DS_NUM_INIT: 3
 
 
 Evaluation:

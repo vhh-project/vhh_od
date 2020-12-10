@@ -42,12 +42,24 @@ class OD(object):
             print("DEBUG MODE activated!")
             self.debug_results = "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/develop/"
 
-        # TODO: this in Config
-        self.use_tracker = False
+        # prepare object detection model
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.use_tracker = self.config_instance.use_deepsort
 
         if self.use_tracker:
             printCustom(f"Initializing Deep Sort Tracker...", STDOUT_TYPE.INFO)
-            self.tracker = DeepSort(model_path="../deep_sort/deep/checkpoint/ckpt.t7")
+            ds_model_path = self.config_instance.ds_model_path
+            ds_max_dist = self.config_instance.ds_max_dist
+            ds_min_conf = self.config_instance.ds_min_conf
+            ds_nms_max_overlap = self.config_instance.ds_nms_max_overlap
+            ds_max_iou_dist = self.config_instance.ds_max_iou_dist
+            ds_max_age = self.config_instance.ds_max_age
+            ds_num_init = self.config_instance.ds_num_init
+            use_cuda = (self.device == "cuda")
+
+            self.tracker = DeepSort(ds_model_path, ds_max_dist, ds_min_conf, ds_nms_max_overlap, ds_max_iou_dist, ds_max_age,
+                               ds_num_init, use_cuda=torch.cuda.is_available())
             printCustom(f"Deep Sort Tracker initialized successfully!", STDOUT_TYPE.INFO)
 
         self.num_colors = 10
@@ -107,13 +119,9 @@ class OD(object):
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
-
-        # prepare object detection model
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         printCustom(f"Initializing Model using \"{self.config_instance.model_config_path}\"...", STDOUT_TYPE.INFO)
         model = Darknet(config_path=self.config_instance.model_config_path,
-                        img_size=self.config_instance.resize_dim).to(device)
+                        img_size=self.config_instance.resize_dim).to(self.device)
 
         printCustom(f"Loading Weights from \"{self.config_instance.path_pre_trained_model}\"...", STDOUT_TYPE.INFO)
         if self.config_instance.path_pre_trained_model.endswith(".weights"):
@@ -154,7 +162,7 @@ class OD(object):
         # all_tensors_l = frames["Tensors"]
         # images_orig = frames["Images"]
 
-        printCustom(f"Starting Object Detection (Executing on device {device})... ", STDOUT_TYPE.INFO)
+        printCustom(f"Starting Object Detection (Executing on device {self.device})... ", STDOUT_TYPE.INFO)
         results_od_l = []
 
         for shot_frames in vid_instance.getFramesByShots(preprocess_pytorch=preprocess):
