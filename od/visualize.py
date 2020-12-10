@@ -1,5 +1,6 @@
 import cv2
 import csv
+import sys
 from matplotlib import cm
 from od.Video import Video
 from od.utils import *
@@ -128,21 +129,18 @@ if __name__ == "__main__":
     # TODO: read params from config
     # ---- Paths
 
+    video_file = sys.argv[1]
+
+    video_file_path = "../videos"
     results_path = "../results/od"
     csv_results_path = os.path.join(results_path, "final_results")
     video_results_path = os.path.join(results_path, "vis")
-    video_file_path = "../videos"
-
-    vid_id = 35
-    vid_format = "m4v"
-
-    print("Visualizing...")
 
     vid_instance = Video()
-    full_video_path = os.path.join(video_file_path, f"{vid_id}.{vid_format}")
-    vid_instance.load(full_video_path)
+    vid_instance.load(os.path.join(video_file_path, video_file))
+    vid_name = vid_instance.vidName.split(".")[0]
 
-    full_csv_path = os.path.join(csv_results_path, f"{vid_id}_dstrack.csv")
+    full_csv_path = os.path.join(csv_results_path, f"{vid_name}.csv")
 
     if not os.path.isdir(video_results_path):
         os.makedirs(video_results_path)
