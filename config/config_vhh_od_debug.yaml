@@ -2,10 +2,10 @@
 Development:
   ###
   # This parameter is used to activate or deactivate the debug mode.
-  DEBUG_FLAG: 0             # 1 ... activate 0 ... deactivate
+  DEBUG_FLAG: 1             # 1 ... activate 0 ... deactivate
   ###
   # This parameter is used to specify a SBD results file for debugging mode.
-  SBD_RESULTS_PATH: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/sbd/final_results/5.csv"
+  SBD_RESULTS_PATH: "/data/share/datasets/vhh_mmsi_test_db_v3/annotations/sbd/57.csv"
   ###
   # This parameter is used to save a debug package (e.g. including some visualizations, ... - not available yet).
   SAVE_DEBUG_PKG: 0
@@ -25,10 +25,10 @@ OdCore:
 
   ###
   # This parameter is used to save raw results (e.g. debug visualizations).
-  SAVE_RAW_RESULTS: 1       # 1 ... yes 0 ... no
+  SAVE_RAW_RESULTS: 0       # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the raw results.
-  PATH_RAW_RESULTS: "../results/od/raw_results/"
+  PATH_RAW_RESULTS: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/raw_results/"
   ###
   # This parameter is used to specify the prefix for the results file.
   PREFIX_RAW_RESULTS: "results_raw_"
@@ -41,7 +41,7 @@ OdCore:
   SAVE_FINAL_RESULTS: 1     # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the final results.
-  PATH_FINAL_RESULTS: "../results/od/final_results/"
+  PATH_FINAL_RESULTS: "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/final_results/"
   ###
   # This parameter is used to specify the prefix for the results file.
   PREFIX_FINAL_RESULTS: "results_"
@@ -51,49 +51,21 @@ OdCore:
 
   ###
   # This parameter is used to specify the path to the videos.
-  PATH_VIDEOS: "../videos"
+  PATH_VIDEOS: "/data/share/datasets/vhh_mmsi_test_db_v3/videos/"
 
   ###
   # This parameter is used to specify the path to the pre-trained model.
-  PATH_PRETRAINED_MODEL: "../config/yolov3/yolov3.weights"
+  PATH_PRETRAINED_MODEL: "/home/dhelm/VHH_Develop/pycharm_vhh_od/pre_trained_models/yolov3.weights"
 
   ###
   # yolov3 detector
-  MODEL_CONFIG_PATH: "../config/yolov3/yolov3.cfg"
+  MODEL_CONFIG_PATH: "/home/dhelm/VHH_Develop/pycharm_vhh_od/config/yolov3/yolov3.cfg"
   ###
   # yolov3 detector - confidence threshold
   MODEL_CONF_THRES: 0.8
   ###
   # yolov3 detector - holding list of trained class categories
-  MODEL_CLASS_NAMES_PATH: "../config/yolov3/coco.names"
-  ###
-  # yolov3 detector - holding list of trained class categories
-  MODEL_CLASS_SELECTION_PATH: "../config/yolov3/class.selection"
-  
-  ###
-  # Parameters for DeepSort Tracker
-  USE_DEEPSORT: 1
-  ###
-  # Path to DeepSort Model Checkpoint
-  DEEPSORT_MODEL_PATH: "../deep_sort/deep/checkpoint/ckpt.t7"
-  ###
-  # Maximum Distance for Nearest Neighbour Cosine Metric. Must be a float >= 0
-  DS_MAX_DIST: 0.2
-  ###
-  # Minimum Confidence to accept an Object. Must be a float between 0 and 1.
-  DS_MIN_CONF: 0.3
-  ###
-  # Maximum overlap for Non-Maximum Suppression. Must be a float >= 0
-  DS_NMS_MAX_OVERLAP: 0.5
-  ###
-  # Maximum allowed IoU distance for tracking. Must be a float >= 0
-  DS_MAX_IOU_DIST: 0.7
-  ###
-  # Maximum number of missed misses before a track is deleted. Must be an integer >= 0
-  DS_MAX_AGE: 70
-  ###
-  # Number of frames that a track remains in initialization phase. Tracking starts if object has been detected x times. Must be an integer >= 0
-  DS_NUM_INIT: 3
+  MODEL_CLASS_NAMES_PATH: "/home/dhelm/VHH_Develop/pycharm_vhh_od/config/yolov3/coco.names"
 
 
 Evaluation:

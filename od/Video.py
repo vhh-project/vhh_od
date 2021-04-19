@@ -216,6 +216,62 @@ class Video(object):
 
         return frame_np
 
+    def getFramesByShots(self, shots_np, preprocess_pytorch=None):
+
+        # initialize video capture
+        cap = cv2.VideoCapture(self.vidFile)
+
+        frame_number = 0
+        for i in range(0, len(shots_np)):
+            shot = shots_np[i]
+
+            frame_l = []
+            frames_orig = []
+
+            sid = int(shot[1])
+            start_idx = int(shot[2])
+            stop_idx = int(shot[3])
+
+            # print(f"Retrieving Frames for Shot {sid} (frames {frame_number} to {stop_idx})...")
+            while frame_number <= stop_idx:
+                # read next frame
+                success, image = cap.read()
+                frame_number = frame_number + 1
+                # print(frame_number)
+
+                # if(start_idx == stop_idx):
+                #    cv2.imshow("frame", image)
+                #    k = cv2.waitKey()
+
+                # skip to start position (for gradual cuts)
+                if frame_number < start_idx:
+                    # print(frame_number)
+                    continue
+
+                if success == True:
+                    # if ( (frame_number >= start_idx and frame_number <= stop_idx) or (start_idx == stop_idx) ):
+                    if (preprocess_pytorch != None):
+                        image = preprocess_pytorch(image)
+                        frame_l.append(image)
+                    else:
+                        frames_orig.append(image)
+                else:
+                    break
+
+            if preprocess_pytorch is not None:
+                all_tensors_l = torch.stack(frame_l)
+                yield {"Tensors": all_tensors_l,
+                       "Images": np.array(frames_orig),
+                       "sid": sid,
+                       "start": start_idx,
+                       "end": stop_idx}
+            else:
+                yield {"Images": np.array(frames_orig),
+                       "sid": sid,
+                       "start": start_idx,
+                       "end": stop_idx}
+        cap.release()
+
     def getShotFromID(self, sid=-1):
         for shot in self.shot_list:
             if(shot.sid == sid):
