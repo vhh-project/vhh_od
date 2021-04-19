@@ -97,8 +97,8 @@ class OD(object):
             exit()
 
         if (self.config_instance.debug_flag == True):
-            num_shots = 3
-            offset = 22
+            num_shots = 10
+            offset = 0
         else:
             num_shots = len(shots_per_vid_np)
             offset = 0
@@ -115,7 +115,7 @@ class OD(object):
             shot_instance = Shot(sid=int(s + 1),
                                  movie_name=shots_per_vid_np[s][0],
                                  start_pos=int(shots_per_vid_np[s][2]),
-                                 end_pos=int(shots_per_vid_np[s][3]))
+                                 end_pos=int(shots_per_vid_np[s][3]) + 1 )
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
@@ -165,10 +165,9 @@ class OD(object):
         printCustom(f"Starting Object Detection (Executing on device {self.device})... ", STDOUT_TYPE.INFO)
         results_od_l = []
 
-        for shot_frames in vid_instance.getFramesByShots(preprocess_pytorch=preprocess):
+        for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=preprocess):
             shot_tensors = shot_frames["Tensors"]
             images_orig = shot_frames["Images"]
-
             current_shot = shot_frames["ShotInfo"]
 
             shot_id = int(current_shot.sid)
@@ -185,8 +184,6 @@ class OD(object):
 
             # run od detector
             predictions_l = self.runModel(model=model, tensor_l=shot_tensors, classes=classes, class_filter=class_selection)
-
-            #print(predictions_l)
 
             # reset tracker for every new shot
             if self.use_tracker:
@@ -345,7 +342,7 @@ class OD(object):
                                   str(x2) + ";" + str(y2) + ";" + str(obj_conf) + ";" + str(class_conf) + ";" + \
                                   str(class_idx)
                             print(tmp)
-                ''''''
+
         if (self.config_instance.debug_flag == True):
             vid_instance.printVIDInfo()
 

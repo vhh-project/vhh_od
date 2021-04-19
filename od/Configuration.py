@@ -37,7 +37,6 @@ class Configuration:
         self.sbd_results_path = None
         self.save_debug_pkg_flag = -1
 
-        self.class_names = None
         self.batch_size = -1
 
         self.save_raw_results = -1
@@ -95,7 +94,6 @@ class Configuration:
                            int(pre_processing_config['RESIZE_DIM'].split(',')[1]))
 
         # od_core_config section
-        self.class_names = od_core_config['CLASS_NAMES']
         self.batch_size = int(od_core_config['BATCH_SIZE'])
 
         self.save_raw_results = int(od_core_config['SAVE_RAW_RESULTS'])

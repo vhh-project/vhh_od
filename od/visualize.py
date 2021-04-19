@@ -68,7 +68,7 @@ def visualize_video(video: Video, full_csv_path, out_path):
     printCustom(f"Visualizing Tracked Results: {tracked}", STDOUT_TYPE.INFO)
 
     # Loading Parameters from Config
-    config_file = "../config/vis_config.yaml"
+    config_file = "./config/vis_config.yaml"
     fp = open(config_file, 'r')
     config = yaml.load(fp, Loader=yaml.BaseLoader)
 

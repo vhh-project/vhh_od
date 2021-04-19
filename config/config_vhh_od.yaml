@@ -48,7 +48,7 @@ OdCore:
 
   ###
   # This parameter is used to specify the path to the videos.
-  PATH_VIDEOS: "/data/share/datasets/vhh_mmsi_test_db_v3/videos"
+  PATH_VIDEOS: "./videos"
 
   ###
   # This parameter is used to specify the path to the pre-trained model.

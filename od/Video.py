@@ -138,7 +138,91 @@ class Video(object):
                 break
         cap.release()
 
-    # Returns Video Shot by Shot
+    def getFrame(self, frame_id):
+        """
+        Method to get one frame of a video on a specified position.
+
+        :param frame_id: [required] integer value with valid frame index
+        :return: numpy frame (WxHx3)
+        """
+
+        self.vid.open(self.vidFile)
+        if(frame_id >= self.number_of_frames):
+            print("ERROR: frame idx out of range!")
+            return []
+
+        #print("Read frame with id: " + str(frame_id));
+        time_stamp_start = datetime.datetime.now().timestamp()
+
+        self.vid.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
+        status, frame_np = self.vid.read()
+        self.vid.release()
+
+        if(status == True):
+            if(self.convert_to_gray == True):
+                frame_np = cv2.cvtColor(frame_np, cv2.COLOR_BGR2GRAY)
+                #print(frame_gray_np.shape);
+            if (self.convert_to_hsv == True):
+                frame_np = cv2.cvtColor(frame_np, cv2.COLOR_BGR2HSV)
+                h, s, v = cv2.split(frame_np)
+
+        time_stamp_end = datetime.datetime.now().timestamp()
+        time_diff = time_stamp_end - time_stamp_start
+        #print("time: " + str(round(time_diff, 4)) + " sec")
+
+        return frame_np
+
+    def getFramesByShots_NEW(self, preprocess_pytorch=None):
+
+        # initialize video capture
+        cap = cv2.VideoCapture(self.vidFile)
+
+        frame_number = 0
+        for shot in self.shot_list:
+
+            frame_l = []
+            frames_orig = []
+
+            sid = int(shot.sid)
+            start_idx = int(shot.start_pos)
+            stop_idx = int(shot.end_pos)
+
+            # print(f"Retrieving Frames for Shot {sid} (frames {frame_number} to {stop_idx})...")
+            while frame_number <= stop_idx:
+                # read next frame
+                success, image = cap.read()
+                frame_number = frame_number + 1
+                #print(frame_number)
+
+                # if(start_idx == stop_idx):
+                #    cv2.imshow("frame", image)
+                #    k = cv2.waitKey()
+
+                # skip to start position (for gradual cuts)
+                if frame_number < start_idx:
+                    # print(frame_number)
+                    continue
+
+                if success == True:
+                    # if ( (frame_number >= start_idx and frame_number <= stop_idx) or (start_idx == stop_idx) ):
+                    if (preprocess_pytorch != None):
+                        frames_orig.append(image)
+                        image = preprocess_pytorch(image)
+                        frame_l.append(image)
+                    else:
+                        frames_orig.append(image)
+                else:
+                    break
+
+            if preprocess_pytorch is not None:
+                all_tensors_l = torch.stack(frame_l)
+                yield {"Tensors": all_tensors_l, "Images": np.array(frames_orig), "ShotInfo": shot}
+            else:
+                yield {"Tensors": None, "Images": np.array(frames_orig), "ShotInfo": shot}
+
+        cap.release()
+
+        # Returns Video Shot by Shot
     def getFramesByShots(self, preprocess_pytorch=None):
 
         # initialize video capture
@@ -174,102 +258,10 @@ class Video(object):
 
             if preprocess_pytorch is not None:
                 all_tensors_l = torch.stack(frame_l)
-                yield {"Tensors": all_tensors_l, "Images" : frames_orig, "ShotInfo" : shot}
+                yield {"Tensors": all_tensors_l, "Images": frames_orig, "ShotInfo": shot}
             else:
-                yield {"Tensors": None, "Images": frames_orig, "ShotInfo" : shot}
+                yield {"Tensors": None, "Images": frames_orig, "ShotInfo": shot}
 
-        cap.release()
-
-
-
-    def getFrame(self, frame_id):
-        """
-        Method to get one frame of a video on a specified position.
-
-        :param frame_id: [required] integer value with valid frame index
-        :return: numpy frame (WxHx3)
-        """
-
-        self.vid.open(self.vidFile)
-        if(frame_id >= self.number_of_frames):
-            print("ERROR: frame idx out of range!")
-            return []
-
-        #print("Read frame with id: " + str(frame_id));
-        time_stamp_start = datetime.datetime.now().timestamp()
-
-        self.vid.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
-        status, frame_np = self.vid.read()
-        self.vid.release()
-
-        if(status == True):
-            if(self.convert_to_gray == True):
-                frame_np = cv2.cvtColor(frame_np, cv2.COLOR_BGR2GRAY)
-                #print(frame_gray_np.shape);
-            if (self.convert_to_hsv == True):
-                frame_np = cv2.cvtColor(frame_np, cv2.COLOR_BGR2HSV)
-                h, s, v = cv2.split(frame_np)
-
-        time_stamp_end = datetime.datetime.now().timestamp()
-        time_diff = time_stamp_end - time_stamp_start
-        #print("time: " + str(round(time_diff, 4)) + " sec")
-
-        return frame_np
-
-    def getFramesByShots(self, shots_np, preprocess_pytorch=None):
-
-        # initialize video capture
-        cap = cv2.VideoCapture(self.vidFile)
-
-        frame_number = 0
-        for i in range(0, len(shots_np)):
-            shot = shots_np[i]
-
-            frame_l = []
-            frames_orig = []
-
-            sid = int(shot[1])
-            start_idx = int(shot[2])
-            stop_idx = int(shot[3])
-
-            # print(f"Retrieving Frames for Shot {sid} (frames {frame_number} to {stop_idx})...")
-            while frame_number <= stop_idx:
-                # read next frame
-                success, image = cap.read()
-                frame_number = frame_number + 1
-                # print(frame_number)
-
-                # if(start_idx == stop_idx):
-                #    cv2.imshow("frame", image)
-                #    k = cv2.waitKey()
-
-                # skip to start position (for gradual cuts)
-                if frame_number < start_idx:
-                    # print(frame_number)
-                    continue
-
-                if success == True:
-                    # if ( (frame_number >= start_idx and frame_number <= stop_idx) or (start_idx == stop_idx) ):
-                    if (preprocess_pytorch != None):
-                        image = preprocess_pytorch(image)
-                        frame_l.append(image)
-                    else:
-                        frames_orig.append(image)
-                else:
-                    break
-
-            if preprocess_pytorch is not None:
-                all_tensors_l = torch.stack(frame_l)
-                yield {"Tensors": all_tensors_l,
-                       "Images": np.array(frames_orig),
-                       "sid": sid,
-                       "start": start_idx,
-                       "end": stop_idx}
-            else:
-                yield {"Images": np.array(frames_orig),
-                       "sid": sid,
-                       "start": start_idx,
-                       "end": stop_idx}
         cap.release()
 
     def getShotFromID(self, sid=-1):
