@@ -1,10 +1,10 @@
-from od.Configuration import Configuration
-from od.Video import Video
-from od.Models import *
-from od.utils import *
-from od.Shot import Shot
-from od.CustObject import CustObject
-from od.visualize import visualize_video
+from vhh_od.Configuration import Configuration
+from vhh_od.Video import Video
+from vhh_od.Models import *
+from vhh_od.utils import *
+from vhh_od.Shot import Shot
+from vhh_od.CustObject import CustObject
+from vhh_od.visualize import visualize_video
 
 from deep_sort.deep_sort import DeepSort
 
@@ -40,7 +40,7 @@ class OD(object):
 
         if (self.config_instance.debug_flag == True):
             print("DEBUG MODE activated!")
-            self.debug_results = "/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/develop/"
+            self.debug_results = "/data/share/maxrecall_vhh_mmsi/develop/videos/results/vhh_od/develop/"
 
         # prepare object detection model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -75,7 +75,7 @@ class OD(object):
         :param max_recall_id: [required] integer value holding unique video id from VHH MMSI system
         """
 
-        print("run od detector on single video ... ")
+        print("run vhh_od detector on single video ... ")
 
         if (type(shots_per_vid_np) == None):
             print("ERROR: you have to set the parameter shots_per_vid_np!")
@@ -138,7 +138,7 @@ class OD(object):
         class_selection = load_classes(self.config_instance.model_class_selection_path)
         printCustom(f"Classes of interest: {class_selection}", STDOUT_TYPE.INFO)
 
-        # prepare transformation for od model
+        # prepare transformation for vhh_od model
         preprocess = transforms.Compose([
             transforms.ToPILImage(),
             # transforms.Resize((int(vid_instance.height), vid_instance.width)),
@@ -182,7 +182,7 @@ class OD(object):
                 print(f"Start: {start} / Stop: {stop}")
                 print(f"Duration: {stop - start} Frames")
 
-            # run od detector
+            # run vhh_od detector
             predictions_l = self.runModel(model=model, tensor_l=shot_tensors, classes=classes, class_filter=class_selection)
 
             # reset tracker for every new shot
@@ -392,7 +392,7 @@ class OD(object):
                  frame-based predictions for a whole shot
         """
 
-        # run od detector
+        # run vhh_od detector
 
         # prepare pytorch dataloader
         Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor

@@ -6,8 +6,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
 
-from od.parse_config import *
-from od.utils import build_targets, to_cpu, non_max_suppression
+from vhh_od.parse_config import *
+from vhh_od.utils import build_targets, to_cpu, non_max_suppression
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches

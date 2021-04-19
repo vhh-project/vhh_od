@@ -1,5 +1,5 @@
-from od.CustObject import CustObject
-from od.utils import append_dict_as_row
+from vhh_od.CustObject import CustObject
+from vhh_od.utils import append_dict_as_row
 import numpy as np
 
 

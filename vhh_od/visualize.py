@@ -2,8 +2,8 @@ import cv2
 import csv
 import sys
 from matplotlib import cm
-from od.Video import Video
-from od.utils import *
+from vhh_od.Video import Video
+from vhh_od.utils import *
 import yaml
 
 def drawBBox(image, bbox, parameters, tracked):
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     video_file = sys.argv[1]
 
     video_file_path = "../videos"
-    results_path = "../results/od"
+    results_path = "../results/vhh_od"
     csv_results_path = os.path.join(results_path, "final_results")
     video_results_path = os.path.join(results_path, "vis")
 

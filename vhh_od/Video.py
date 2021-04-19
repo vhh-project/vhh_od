@@ -1,8 +1,8 @@
 import numpy as np
 import cv2
 import datetime
-from od.utils import *
-from od.Shot import Shot
+from vhh_od.utils import *
+from vhh_od.Shot import Shot
 from PIL import Image
 import torchvision
 
@@ -290,7 +290,7 @@ class Video(object):
             for dict_entry in dict_l:
                 append_dict_as_row(filepath, dict_entry, field_names)
 
-    def loadCsvExport(self, filepath="/data/share/maxrecall_vhh_mmsi/develop/videos/results/od/raw_results/test.csv"):
+    def loadCsvExport(self, filepath="/data/share/maxrecall_vhh_mmsi/develop/videos/results/vhh_od/raw_results/test.csv"):
         print("load csv results export ... ")
 
         field_names = ['movie_name', 'sid', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',

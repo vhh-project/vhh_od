@@ -1,8 +1,8 @@
 from __future__ import division
 
-from od.Models import *
-from od.utils import *
-from od.datasets import *
+from vhh_od.Models import *
+from vhh_od.utils import *
+from vhh_od.datasets import *
 
 import os
 import sys

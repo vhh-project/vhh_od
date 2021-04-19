@@ -7,7 +7,7 @@ from PIL import Image
 import torch
 import torch.nn.functional as F
 
-from od.augmentations import horizontal_flip
+from vhh_od.augmentations import horizontal_flip
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
