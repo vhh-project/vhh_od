@@ -42,6 +42,9 @@ def visualize_video(video: Video, full_csv_path, out_path):
     csv_file = open(full_csv_path, "r")
     annotations = csv.reader(csv_file, delimiter=",")
 
+    # Skip header
+    next(annotations, None) 
+
     vid_id = video.vidName.split('.')[0]
     vid_format = video.vidName.split('.')[1]
 
