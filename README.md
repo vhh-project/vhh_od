@@ -84,8 +84,8 @@ Install a Version of PyTorch depending on your setup. Consult the [PyTorch websi
     * Make sure to have a video (e.g vid.m4v) stored under /videos and a corresponding object detection result in /results/od/final_results (e.g. vid.csv)
     * Make sure that the vhh_od directory is in your Python-Path
     * Settings can be adjusted via config/vis_config.yaml
-    * ```cd od```
-    * ```python visualize.py vid.m4v```
+    * ```python Demo/run_visualization_on_single_video.py vid.m4v```
+    * This will create a video with bounding boxes in the raw results folder specified in config_vhh_od.yaml
 
 
 ## Release Generation
