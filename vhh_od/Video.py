@@ -285,6 +285,7 @@ class Video(object):
         field_names = ['movie_name', 'sid', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
                        'object_conf', 'class_score', 'class_name']
 
+        add_header(filepath, field_names)
         for shot in self.shot_list:
             dict_l = shot.convertObjectList2Dict()
             for dict_entry in dict_l:
