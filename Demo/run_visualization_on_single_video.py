@@ -7,8 +7,8 @@ import os
 
 
 """
-Visualizes the results of annotations
-Give the nanme of the video file as parameter, for example '8277.m4v'
+Visualizes the results of annotations, creates a video with bounding boxes in the raw results folder specified in config_vhh_od.yaml
+Give the name of the video file as parameter, for example '8277.m4v'
 Expected to run from the project root folder, for example 'python Demo/run_visualization_on_single_video.py'
 """
 
@@ -17,7 +17,6 @@ if __name__ == "__main__":
     video_file = sys.argv[1]
 
     config_file = './config/config_vhh_od.yaml'
-    print(os.getcwd())
     config_instance = Configuration(config_file)
     config_instance.loadConfig()
     
