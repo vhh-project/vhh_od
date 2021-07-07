@@ -236,7 +236,7 @@ class Video(object):
             start_pos = shot.start_pos
             end_pos = shot.end_pos
 
-            print(f"Retrieving Frames for Shot {shot.sid} (frames {cnt} to {end_pos})...")
+            #print(f"Retrieving Frames for Shot {shot.sid} (frames {cnt} to {end_pos})...")
 
             while cnt <= end_pos:
                 cnt = cnt + 1
@@ -294,8 +294,8 @@ class Video(object):
     def loadCsvExport(self, filepath="/data/share/maxrecall_vhh_mmsi/develop/videos/results/vhh_od/raw_results/test.csv"):
         print("load csv results export ... ")
 
-        field_names = ['movie_name', 'sid', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
-                       'conf_score', 'class_name']
+        field_names =  ['movie_name', 'sid', 'start', 'stop', 'fid', 'oid', 'bb_x1', 'bb_y1', 'bb_x2', 'bb_y2',
+                       'object_conf', 'class_score', 'class_name']
 
         dict_l = load_csv_as_dict(file_name=filepath, field_names=field_names)
         print(dict_l)
