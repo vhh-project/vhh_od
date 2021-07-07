@@ -97,6 +97,9 @@ class OD(object):
             im, x, y, w, h = self.rescale_bb(img_orig, frame_based_predictions)
             detection_data = self.get_detection_data(False, frame_id = a, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
 
+            # Switch color channels 
+            im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+
             if len(frame_based_predictions) > 0:
                 for data in detection_data:
                     nr_crops += 1
