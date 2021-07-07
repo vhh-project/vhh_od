@@ -66,51 +66,59 @@ class OD(object):
         self.color_map = cm.get_cmap('gist_rainbow', self.num_colors)
 
 
-    def runOnAllFramesInFolder(self, folder_path):
+    def runOnAllFramesInFolder(self, folder_path, output_folder_path):
         """
-        Runs object detection on each picture
+        Runs object detection on each picture, and stores crops of the boundary boxes as separate images
 
-        + Skript in demo to run it
-
-        :param folder_path: Path to a folder with pictures (as png)
-        :param outputpath: 
+        :param folder_path: Path to a folder with pictures, folder should ONLY contain images
+        :param output_folder_path: The path in which to store the crops
         """
 
         self.advanced_init()
 
-        img_orig = []
-        img_preprocessed = []
+        nr_crops = 0
 
         image_files = os.listdir(folder_path)
-        for image_file in image_files:
+        for a, image_file in enumerate(image_files):
+            print("Processed {0} / {1} images".format(a, len(image_files)), end ="\r")
+
             img = cv2.imread(os.path.join(folder_path, image_file))
-            img_orig.append(img)
-            img_preprocessed.append(self.preprocess(img))
+            img_orig = img
 
-        tensors = torch.stack(img_preprocessed)
+            tensors = torch.unsqueeze(self.preprocess(img), dim = 0)
 
-        predictions_l = self.runModel(model=self.model, tensor_l=tensors, classes=self.classes, class_filter=self.class_selection)
-        for a in range(0, len(predictions_l)):
-            frame_based_predictions = predictions_l[a]
+            predictions_l = self.runModel(model=self.model, tensor_l=tensors, classes=self.classes, class_filter=self.class_selection)
+            frame_based_predictions = predictions_l[0]
+
+            # No predictions means no boundary boxes
             if frame_based_predictions is None:
                 continue
-            im, x, y, w, h = self.rescale_bb(img_orig[a], frame_based_predictions)
+
+            im, x, y, w, h = self.rescale_bb(img_orig, frame_based_predictions)
             detection_data = self.get_detection_data(False, frame_id = a, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
 
             if len(frame_based_predictions) > 0:
-                print("-----------------------------------")
                 for data in detection_data:
-                    print(data.object_class_name)
-                    x1v = int(data.bb_x1)
-                    x2v = int(data.bb_x2)
-                    y1v = int(data.bb_y1)
-                    y2v = int(data.bb_y2)
-                    color = [0, 0.5, 0.7]
-                    color = tuple([int(color[i] * 255) for i in range(len(color))])
-                    im = cv2.rectangle(im, (x1v, y1v), (x2v, y2v), color, 5)
-                    cv2.rectangle(im, (x1v, y1v), (x1v + 3, y1v + 4), color, -1)
-                cv2.imshow("im", im)
-                cv2.waitKey()
+                    nr_crops += 1
+
+                    crop_img = im[data.bb_y1:data.bb_y2, data.bb_x1:data.bb_x2]
+
+                    # Sometimes OD predicts boundary boxes with coordinates < 0, cannot crop those so ignore them
+                    if(data.bb_y1 < 0) or (data.bb_y2 < 0) or (data.bb_x1 < 0) or (data.bb_x2 < 0):
+                        continue
+
+
+                    # Store crops
+                    folder_crop_img_path = os.path.join(output_folder_path, data.object_class_name)
+                    if not os.path.isdir(folder_crop_img_path):
+                        os.mkdir(folder_crop_img_path)
+
+                    name_crop_img = data.object_class_name + "_" + str(a) + "_" + str(data.oid) + ".png"
+                    fullpath_crop_img = os.path.join(folder_crop_img_path, name_crop_img)
+                    cv2.imwrite(fullpath_crop_img,crop_img)
+        # Output data
+        print("Processed {0} / {0} images\nExtracted {1} crops".format(len(image_files), nr_crops))
+
 
     def advanced_init(self):
         """"
