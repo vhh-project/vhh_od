@@ -5,7 +5,7 @@ class CustObject(object):
     This class is representing a shot. Each instance of this class is holding the properties of one shot.
     """
 
-    def __init__(self, oid, fid, object_class_name, object_conf, class_score, bb_x1, bb_y1, bb_x2, bb_y2):
+    def __init__(self, oid, fid, object_class_idx, object_class_name, object_conf, class_score, bb_x1, bb_y1, bb_x2, bb_y2):
         """
         Constructor
 
@@ -19,6 +19,7 @@ class CustObject(object):
         self.oid = oid
         self.fid = fid
         self.object_class_name = object_class_name
+        self.object_class_idx = object_class_idx
         self.object_conf = object_conf
         self.class_score = class_score
         self.bb_x1 = bb_x1
@@ -34,7 +35,7 @@ class CustObject(object):
         """
         tmp_str = str(self.fid) + ";" + str(self.oid) + ";" + str(self.bb_x1) + ";" + \
                   str(self.bb_y1) + ";" + str(self.bb_x2) + ";" + str(self.bb_y2) + ";" + str(self.object_conf) \
-                  + ";" + str(self.class_score) + ";" + str(self.object_class_name)
+                  + ";" + str(self.class_score) + ";" + str(self.object_class_name) + ";" + str(self.object_class_idx)
         return tmp_str
 
     def printObjectInfo(self):
@@ -45,6 +46,7 @@ class CustObject(object):
         print("object id: " + str(self.oid))
         print("frame id: " + str(self.fid))
         print("object_class_name: " + str(self.object_class_name))
+        print("object_class_idx:" + str(self.object_class_idx))
         print("object_conf: " + str(self.object_conf))
         print("class_score: " + str(self.class_score))
         print("bounding box: (" + str(self.bb_x1) + "," + str(self.bb_y1) + ","

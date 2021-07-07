@@ -66,6 +66,188 @@ class OD(object):
         self.color_map = cm.get_cmap('gist_rainbow', self.num_colors)
 
 
+    def runOnAllFramesInFolder(self, folder_path):
+        """
+        Runs object detection on each picture
+
+        + Skript in demo to run it
+
+        :param folder_path: Path to a folder with pictures (as png)
+        :param outputpath: 
+        """
+
+        self.advanced_init()
+
+        img_orig = []
+        img_preprocessed = []
+
+        image_files = os.listdir(folder_path)
+        for image_file in image_files:
+            img = cv2.imread(os.path.join(folder_path, image_file))
+            img_orig.append(img)
+            img_preprocessed.append(self.preprocess(img))
+
+        tensors = torch.stack(img_preprocessed)
+
+        predictions_l = self.runModel(model=self.model, tensor_l=tensors, classes=self.classes, class_filter=self.class_selection)
+        for a in range(0, len(predictions_l)):
+            frame_based_predictions = predictions_l[a]
+            if frame_based_predictions is None:
+                continue
+            im, x, y, w, h = self.rescale_bb(img_orig[a], frame_based_predictions)
+            detection_data = self.get_detection_data(False, frame_id = a, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
+
+            if len(frame_based_predictions) > 0:
+                print("-----------------------------------")
+                for data in detection_data:
+                    print(data.object_class_name)
+                    x1v = int(data.bb_x1)
+                    x2v = int(data.bb_x2)
+                    y1v = int(data.bb_y1)
+                    y2v = int(data.bb_y2)
+                    color = [0, 0.5, 0.7]
+                    color = tuple([int(color[i] * 255) for i in range(len(color))])
+                    im = cv2.rectangle(im, (x1v, y1v), (x2v, y2v), color, 5)
+                    cv2.rectangle(im, (x1v, y1v), (x1v + 3, y1v + 4), color, -1)
+                cv2.imshow("im", im)
+                cv2.waitKey()
+
+    def advanced_init(self):
+        """"
+        Creates and loads weight into the mode, loads classes, loads resized dims, and creates preprocess object
+        """
+
+        printCustom(f"Initializing Model using \"{self.config_instance.model_config_path}\"...", STDOUT_TYPE.INFO)
+        self.model = Darknet(config_path=self.config_instance.model_config_path,
+                        img_size=self.config_instance.resize_dim).to(self.device)
+
+        printCustom(f"Loading Weights from \"{self.config_instance.path_pre_trained_model}\"...", STDOUT_TYPE.INFO)
+        if self.config_instance.path_pre_trained_model.endswith(".weights"):
+            # Load darknet weights
+            self.model.load_darknet_weights(self.config_instance.path_pre_trained_model)
+        else:
+            # Load checkpoint weights
+            self.model.load_state_dict(torch.load(self.config_instance.path_pre_trained_model))
+
+        printCustom(f"Loading Class Names from \"{self.config_instance.model_class_names_path}\"... ", STDOUT_TYPE.INFO)
+        self.classes = load_classes(self.config_instance.model_class_names_path)
+
+        printCustom(f"Loading Class Selection from \"{self.config_instance.model_class_selection_path}\"... ", STDOUT_TYPE.INFO)
+        self.class_selection = load_classes(self.config_instance.model_class_selection_path)
+        printCustom(f"Classes of interest: {self.class_selection}", STDOUT_TYPE.INFO)
+
+        # prepare transformation for vhh_od model
+        self.preprocess = transforms.Compose([
+            transforms.ToPILImage(),
+            # transforms.Resize((int(vid_instance.height), vid_instance.width)),
+            # transforms.CenterCrop((int(vid_instance.height), int(vid_instance.height))),
+            transforms.Resize(self.config_instance.resize_dim),
+            # ToGrayScale(),
+            transforms.ToTensor()
+            # transforms.Normalize((self.config_instance.mean_values[0] / 255.0,
+            #                      self.config_instance.mean_values[1] / 255.0,
+            #                      self.config_instance.mean_values[2] / 255.0),
+            #                     (self.config_instance.std_dev[0] / 255.0,
+            #                      self.config_instance.std_dev[1] / 255.0,
+            #                      self.config_instance.std_dev[2] / 255.0))
+        ])
+
+        self.resized_dim_y = self.config_instance.resize_dim[0]
+        self.resized_dim_x = self.config_instance.resize_dim[1]
+
+    def get_detection_data(self, use_tracker, frame_id, **kwargs):
+        """
+        Takes prediction data and outputs the detection data as a list of "CustObject"s
+        Depending on if you use a tracker you need to input different things.
+        If you use a tracker:
+            - Need to give a variable tracking_results, for example: get_detection_data(True, frame_id = frame_id, tracking_results = tracking_results)
+        If you do not use a tracker:
+            - Need to give variables named x, y, w, h that represent the bounding boxes (you get those from calling rescale_bb(...)) and frame_based_predictions
+                for example: get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
+        """
+
+        obj_id = 0 
+        if use_tracker:
+            tracking_results = kwargs["tracking_results"]
+            x1_list = tracking_results[:,0]
+            x2_list = tracking_results[:,2]
+            y1_list = tracking_results[:,1]
+            y2_list = tracking_results[:,3]
+            ids = tracking_results[:,4]
+            object_classes = tracking_results[:,5]
+            object_confs = None
+            class_confs = None
+            num_results = len(tracking_results)
+        else:
+            frame_based_predictions = kwargs["frame_based_predictions"]
+            x = kwargs["x"]
+            y = kwargs["y"]
+            w = kwargs["w"]
+            h = kwargs["h"]
+            x1_list = x
+            x2_list = x + w
+            y1_list = y
+            y2_list = y + h
+            ids = None
+            object_confs = frame_based_predictions[:,4].cpu().numpy()
+            class_confs = frame_based_predictions[:,5].cpu().numpy()
+            object_classes = frame_based_predictions[:, 6].cpu().numpy()
+            num_results = len(frame_based_predictions)
+
+        cust_object_list = []
+        for object_idx in range(num_results):
+            x1 = int(x1_list[object_idx])
+            x2 = int(x2_list[object_idx])
+            y1 = int(y1_list[object_idx])
+            y2 = int(y2_list[object_idx])
+
+            if ids is None:
+                instance_id = obj_id
+                obj_id = obj_id + 1
+            else:
+                instance_id = ids[object_idx]
+
+            if object_confs is None:
+                obj_conf = "N/A"
+            else:
+                obj_conf = object_confs[object_idx]
+
+            if class_confs is None:
+                class_conf = "N/A"
+            else:
+                class_conf = class_confs[object_idx]
+
+            class_idx = int(object_classes[object_idx])
+            class_name = self.classes[class_idx]
+
+            # (x1, y1, x2, y2, object_conf, class_score, class_pred)
+            obj_instance = CustObject(oid=instance_id,
+                                        fid=frame_id,
+                                        object_class_name=class_name,
+                                        object_class_idx=class_idx, 
+                                        object_conf=obj_conf,
+                                        class_score=class_conf,
+                                        bb_x1=x1,
+                                        bb_y1=y1,
+                                        bb_x2=x2,
+                                        bb_y2=y2
+                                        )
+            cust_object_list.append(obj_instance)
+        return cust_object_list
+
+    def rescale_bb(self, image_orig, frame_based_predictions):
+        """
+        Rescales bounding boxes to fit original video resolution
+        """
+        im = cv2.cvtColor(image_orig, cv2.COLOR_BGR2RGB)
+        y_factor = im.shape[0] / self.resized_dim_y
+        x_factor = im.shape[1] / self.resized_dim_x
+        x = (frame_based_predictions[:, 0]).cpu().numpy() * x_factor
+        y = (frame_based_predictions[:, 1]).cpu().numpy() * y_factor
+        w = (frame_based_predictions[:, 2]).cpu().numpy() * x_factor - x
+        h = (frame_based_predictions[:, 3]).cpu().numpy() * y_factor - y
+        return im, x, y, w, h
+
     def runOnSingleVideo(self, shots_per_vid_np=None, max_recall_id=-1):
         """
         Method to run stc classification on specified video.
@@ -119,53 +301,12 @@ class OD(object):
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
-        printCustom(f"Initializing Model using \"{self.config_instance.model_config_path}\"...", STDOUT_TYPE.INFO)
-        model = Darknet(config_path=self.config_instance.model_config_path,
-                        img_size=self.config_instance.resize_dim).to(self.device)
-
-        printCustom(f"Loading Weights from \"{self.config_instance.path_pre_trained_model}\"...", STDOUT_TYPE.INFO)
-        if self.config_instance.path_pre_trained_model.endswith(".weights"):
-            # Load darknet weights
-            model.load_darknet_weights(self.config_instance.path_pre_trained_model)
-        else:
-            # Load checkpoint weights
-            model.load_state_dict(torch.load(self.config_instance.path_pre_trained_model))
-
-        printCustom(f"Loading Class Names from \"{self.config_instance.model_class_names_path}\"... ", STDOUT_TYPE.INFO)
-        classes = load_classes(self.config_instance.model_class_names_path)
-
-        printCustom(f"Loading Class Selection from \"{self.config_instance.model_class_selection_path}\"... ", STDOUT_TYPE.INFO)
-        class_selection = load_classes(self.config_instance.model_class_selection_path)
-        printCustom(f"Classes of interest: {class_selection}", STDOUT_TYPE.INFO)
-
-        # prepare transformation for vhh_od model
-        preprocess = transforms.Compose([
-            transforms.ToPILImage(),
-            # transforms.Resize((int(vid_instance.height), vid_instance.width)),
-            # transforms.CenterCrop((int(vid_instance.height), int(vid_instance.height))),
-            transforms.Resize(self.config_instance.resize_dim),
-            # ToGrayScale(),
-            transforms.ToTensor(),
-            # transforms.Normalize((self.config_instance.mean_values[0] / 255.0,
-            #                      self.config_instance.mean_values[1] / 255.0,
-            #                      self.config_instance.mean_values[2] / 255.0),
-            #                     (self.config_instance.std_dev[0] / 255.0,
-            #                      self.config_instance.std_dev[1] / 255.0,
-            #                      self.config_instance.std_dev[2] / 255.0))
-        ])
-
-        resized_dim_y = self.config_instance.resize_dim[0]
-        resized_dim_x = self.config_instance.resize_dim[1]
-
-        # Old solution for retrieving all frames at once
-        # frames = vid_instance.getAllFrames(preprocess_pytorch=preprocess)
-        # all_tensors_l = frames["Tensors"]
-        # images_orig = frames["Images"]
+        self.advanced_init()
 
         printCustom(f"Starting Object Detection (Executing on device {self.device})... ", STDOUT_TYPE.INFO)
         results_od_l = []
 
-        for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=preprocess):
+        for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=self.preprocess):
             shot_tensors = shot_frames["Tensors"]
             images_orig = shot_frames["Images"]
             current_shot = shot_frames["ShotInfo"]
@@ -183,7 +324,7 @@ class OD(object):
                 print(f"Duration: {stop - start} Frames")
 
             # run vhh_od detector
-            predictions_l = self.runModel(model=model, tensor_l=shot_tensors, classes=classes, class_filter=class_selection)
+            predictions_l = self.runModel(model=self.model, tensor_l=shot_tensors, classes=self.classes, class_filter=self.class_selection)
 
             # reset tracker for every new shot
             if self.use_tracker:
@@ -210,13 +351,7 @@ class OD(object):
                 else:
 
                     # rescale bounding boxes to fit original video resolution
-                    im = cv2.cvtColor(images_orig[a], cv2.COLOR_BGR2RGB)
-                    y_factor = im.shape[0] / resized_dim_y
-                    x_factor = im.shape[1] / resized_dim_x
-                    x = (frame_based_predictions[:, 0]).cpu().numpy() * x_factor
-                    y = (frame_based_predictions[:, 1]).cpu().numpy() * y_factor
-                    w = (frame_based_predictions[:, 2]).cpu().numpy() * x_factor - x
-                    h = (frame_based_predictions[:, 3]).cpu().numpy() * y_factor - y
+                    im, x, y, w, h = self.rescale_bb(images_orig[a], frame_based_predictions)
 
                     if self.use_tracker:
 
@@ -235,46 +370,34 @@ class OD(object):
                         num_results = len(tracking_results)
                         #print(f"Outputs:\n{tracking_results}")
 
+                        detection_data = []
                         if num_results > 0:
-                            x1_list = tracking_results[:,0]
-                            x2_list = tracking_results[:,2]
-                            y1_list = tracking_results[:,1]
-                            y2_list = tracking_results[:,3]
-                            ids = tracking_results[:,4]
-                            object_classes = tracking_results[:,5]
-                            object_confs = None
-                            class_confs = None
+                            detection_data = self.get_detection_data(True, frame_id = frame_id, tracking_results = tracking_results)
 
                         # visualization
                         '''
                         num_colors = 10
                         color_map = cm.get_cmap('gist_rainbow', num_colors)
-
                         if len(tracking_results) > 0:
                             for box in tracking_results:
                                 x1v = int(box[0])
                                 x2v = int(box[2])
                                 y1v = int(box[1])
                                 y2v = int(box[3])
-
                                 color_idx = box[4] % self.num_colors
                                 color = color_map(color_idx)[0:3]
                                 color = tuple([int(color[i] * 255) for i in range(len(color))])
-
                                 class_name = classes[int(box[5])]
                                 label = f"{class_name} {box[4]}"
                                 font_size = 0.5
                                 font_thickness = 1
                                 text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_size , font_thickness)[0]
-
                                 # draw bounding box
                                 im = cv2.rectangle(im, (x1v, y1v), (x2v, y2v), color, 5)
-
                                 # draw text and background
                                 cv2.rectangle(im, (x1v, y1v), (x1v + text_size[0] + 3, y1v + text_size[1] + 4), color, -1)
                                 cv2.putText(im, label, (x1v, y1v + text_size[1]), cv2.FONT_HERSHEY_SIMPLEX, font_size,
                                             [0, 0, 0], font_thickness)
-
                             cv2.imshow("im", im)
                             cv2.waitKey()
                         '''
@@ -282,65 +405,22 @@ class OD(object):
 
                     else:
                         # if no tracker is used, store the detection results
-                        x1_list = x
-                        x2_list = x + w
-                        y1_list = y
-                        y2_list = y + h
-                        ids = None
-                        object_confs = frame_based_predictions[:,4].cpu().numpy()
-                        class_confs = frame_based_predictions[:,5].cpu().numpy()
-                        object_classes = frame_based_predictions[:, 6].cpu().numpy()
-                        num_results = len(frame_based_predictions)
-
+                        detection_data = self.get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
 
                     # store predictions for each object in the frame
-                    for object_idx in range(0, num_results):
+                    for obj in detection_data:
 
-                        x1 = int(x1_list[object_idx])
-                        x2 = int(x2_list[object_idx])
-                        y1 = int(y1_list[object_idx])
-                        y2 = int(y2_list[object_idx])
+                        results_od_l.append([obj.oid, shot_id, vid_name, start, stop, frame_id,
+                                             obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])
 
-                        if ids is None:
-                            instance_id = obj_id
-                            obj_id = obj_id + 1
-                        else:
-                            instance_id = ids[object_idx]
+                        current_shot.addCustomObject(obj)
 
-                        if object_confs is None:
-                            obj_conf = "N/A"
-                        else:
-                            obj_conf = object_confs[object_idx]
-
-                        if class_confs is None:
-                            class_conf = "N/A"
-                        else:
-                            class_conf = class_confs[object_idx]
-
-                        class_idx = int(object_classes[object_idx])
-                        class_name = classes[class_idx]
-
-                        results_od_l.append([instance_id, shot_id, vid_name, start, stop, frame_id,
-                                             x1, y1, x2, y2, obj_conf, class_conf, class_idx])
-
-                        # (x1, y1, x2, y2, object_conf, class_score, class_pred)
-                        obj_instance = CustObject(oid=instance_id,
-                                                  fid=frame_id,
-                                                  object_class_name=class_name,
-                                                  object_conf=obj_conf,
-                                                  class_score=class_conf,
-                                                  bb_x1=x1,
-                                                  bb_y1=y1,
-                                                  bb_x2=x2,
-                                                  bb_y2=y2
-                                                  )
-                        current_shot.addCustomObject(obj_instance)
 
                         if (self.config_instance.debug_flag == True):
                             tmp = str(obj_id) + ";" + str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + \
-                                  str(stop) + ";" + str(frame_id) + ";" + str(x1) + ";" + str(y1) + ";" + \
-                                  str(x2) + ";" + str(y2) + ";" + str(obj_conf) + ";" + str(class_conf) + ";" + \
-                                  str(class_idx)
+                                  str(stop) + ";" + str(frame_id) + ";" + str(obj.bb_x1) + ";" + str(obj.bb_y1) + ";" + \
+                                  str(obj.bb_x2) + ";" + str(obj.bb_y2) + ";" + str(obj.bb_obj_conf) + ";" + str(obj.bb_class_conf) + ";" + \
+                                  str(obj.bb_class_idx)
                             print(tmp)
 
         if (self.config_instance.debug_flag == True):
@@ -420,7 +500,6 @@ class OD(object):
 
                 #predictions_l.extend(batch_detections)
                 #continue
-
                 for frame_detection in batch_detections:
 
                     filtered_detection = None
@@ -470,6 +549,5 @@ class OD(object):
             line_split = line.split(';')
             lines_n.append([line_split[0], os.path.join(line_split[1]), line_split[2], line_split[3]])
         lines_np = np.array(lines_n)
-        #print(lines_np.shape)
 
         return lines_np
