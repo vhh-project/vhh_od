@@ -76,8 +76,11 @@ class OD(object):
 
         self.advanced_init()
 
-        nr_crops = 0
+        # File to store crop information in
+        information_file = open(os.path.join(output_folder_path, "crop_information.txt"), "w")
+        information_file.write("original_image, crop_image, class_name, x1, x2, y1, y2\n")
 
+        nr_crops = 0
         image_files = os.listdir(folder_path)
         for a, image_file in enumerate(image_files):
             print("Processed {0} / {1} images".format(a, len(image_files)), end ="\r")
@@ -119,6 +122,11 @@ class OD(object):
                     name_crop_img = data.object_class_name + "_" + str(a) + "_" + str(data.oid) + ".png"
                     fullpath_crop_img = os.path.join(folder_crop_img_path, name_crop_img)
                     cv2.imwrite(fullpath_crop_img,crop_img)
+
+                    information_file.write(','.join([image_file, name_crop_img, data.object_class_name, str(data.bb_x1), str(data.bb_x2), str(data.bb_y1), str(data.bb_y2)]))
+                    information_file.write('\n')
+        information_file.close()
+            
         # Output data
         print("Processed {0} / {0} images\nExtracted {1} crops".format(len(image_files), nr_crops))
 
