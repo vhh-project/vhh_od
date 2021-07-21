@@ -36,7 +36,7 @@ def main():
     if not os.path.isdir(args.path) or not os.path.isdir(args.outpath):
         raise ValueError("path must point to a valid directory. Call this script with the '-h' parameter to get information on how to run it")
 
-    stc_instance.runOnAllFramesInFolder(args.path, args.outpath)
-
+    stc_instance.runOnAllFramesInFolder(args.path, True, False, output_folder_path = args.outpath)
+    
 if __name__ == "__main__":
     main()

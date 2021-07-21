@@ -112,6 +112,9 @@ class Configuration:
         self.model_config_path = od_core_config['MODEL_CONFIG_PATH']
 
         self.confidence_threshold = float(od_core_config['MODEL_CONF_THRES'])
+        self.iou_threshold = float(od_core_config['MODEL_IOU_THRESH'])
+        self.nms_threshold = float(od_core_config['MODEL_NMS_THRESH'])
+
         self.model_class_names_path = od_core_config['MODEL_CLASS_NAMES_PATH']
         self.model_class_selection_path = od_core_config['MODEL_CLASS_SELECTION_PATH']
 
