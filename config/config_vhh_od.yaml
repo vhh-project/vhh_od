@@ -57,9 +57,19 @@ OdCore:
   ###
   # yolov3 detector
   MODEL_CONFIG_PATH: "./config/yolov3/yolov3.cfg"
+
   ###
   # yolov3 detector - confidence threshold
-  MODEL_CONF_THRES: 0.8
+  MODEL_CONF_THRES: 0.1
+
+  ###
+  # yolov3 detector - IOU confidence threshold (NOT USED)
+  MODEL_IOU_THRESH: 0.4
+
+  ###
+  # yolov3 detector - NMS confidence threshold
+  MODEL_NMS_THRESH: 0.3
+
   ###
   # yolov3 detector - holding list of trained class categories
   MODEL_CLASS_NAMES_PATH: "./config/yolov3/coco.names"
