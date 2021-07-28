@@ -7,3 +7,5 @@ tqdm
 pyyaml
 pillow
 scipy
+wandb
+sklearn
