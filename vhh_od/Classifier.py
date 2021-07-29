@@ -12,6 +12,7 @@ import sklearn.metrics
 
 used_classes = ["others", "soldier", "corpse", "person_with_kz_uniform"]
 n_classes = len(used_classes)
+batchsize = 8
 
 test_transform =  transforms.Compose([
         transforms.ToTensor(),
@@ -54,7 +55,42 @@ def get_metrics(outputs, labels, do_class_metrics = False):
     metrics["accuracy"] = accuracy
     return metrics
 
+class Classifier():
+    def __init__(self, model_name, path_to_weights, device):
+        self.model = ClassifierModel(model_name)
+        self.model.load_state_dict(torch.load(path_to_weights))
+        self.device = device
+        self.model.to(device)
+
+    def inference(self, crops):
+        """
+        Takes a batch of (unprocessed) crops and classifies them
+        """
+        self.model.eval()
+        with torch.no_grad():
+            crops = crops.to(self.device)
+            outputs = self.model(crops).cpu().detach().numpy()
+            class_idx = output_to_prediction(outputs)
+            class_names = [idx_to_class(idx) for idx in class_idx]
+        return class_names, class_idx
+
+    def to(self, device):
+        self.model.to(device)
+        self.device = device
+
+    def inference_from_img(self, img):
+        """
+        Takes a batch of (unprocessed) crops and returns scores
+        """
+        return self.inference(img)
+    
+
 class ClassifierModel(nn.Module):
+    """
+    A wrapper around a pretrained classifier model
+    Classifies a batch of crops according to used_classes
+    """
+
     def __init__(self, model_name):
         super(ClassifierModel, self).__init__()
 
@@ -140,7 +176,6 @@ def evaluate(dataloader, name, epoch, device, model, criterion, do_class_metrics
         for batch in dataloader:
             inputs = batch["image"].to(device)
             labels = batch["class"].to(device)
-
             outputs = model(inputs)
 
             labels_train += labels.cpu().detach().numpy().tolist()
@@ -154,4 +189,71 @@ def evaluate(dataloader, name, epoch, device, model, criterion, do_class_metrics
         metrics["total_loss"] = curr_loss
         print("\t{0} loss: {1}\n\t{0} accuracy: {2}".format(name, curr_loss, metrics["accuracy"]))
         return metrics
+
+
+class obj_list_loader:
+    """
+    This is a generator that allows you to loop through custom_objects and images
+    """
+
+    def __init__(self, custom_obj_list, relevant_frames):
+        self.custom_obj_list = custom_obj_list
+        self.relevant_frames = relevant_frames
+
+    def loop(self):
+        crops = None
+        indices = []
+
+        # Indices of objects in which persons appear
+        for i, obj in enumerate(self.custom_obj_list):
+            if obj.object_class_name == "person":
+                # Sometimes OD predicts boundary boxes with coordinates < 0, cannot crop those so ignore them
+                if(obj.bb_y1 < 0) or (obj.bb_y2 < 0) or (obj.bb_x1 < 0) or (obj.bb_x2 < 0) or (obj.bb_y2 <= obj.bb_y1) or (obj.bb_x2 <= obj.bb_x1):
+                    continue
+                
+                indices.append(i)
+                image = self.relevant_frames[obj.bb_y1:obj.bb_y2, obj.bb_x1:obj.bb_x2]
+                image = test_transform(image)
+
+                # Add a new dimenions in front on which we will append the different images
+                image = torch.unsqueeze(image, 0)
+
+                if crops is not None:
+                    crops = torch.cat((crops, image), 0)
+                else:
+                    crops = image
+
+            if len(indices) == batchsize:
+                yield crops, indices
+                crops = None
+                indices = []
+        yield crops, indices
+
+
+
+
+def run_classifier_on_list_of_custom_objects(classifier, custom_obj_list, relevant_frames):
+    generator = obj_list_loader(custom_obj_list, relevant_frames)
+
+    for crops, indices in generator.loop():
+        # No crops means nothing to classify
+        if crops is None:
+            return
+
+
+        crops = torch.split(crops, batchsize, dim=0)
+        idx = 0
+        for batch in crops:
+            class_names, _ = classifier.inference_from_img(batch)
+            
+            for class_name in class_names:
+                custom_obj_list[indices[idx]].add_classification(class_name)
+                idx += 1
+
+
+            # cv2.imshow("hey", image)
+            # cv2.waitKey(0)
+            # print("og image", image.shape)
+            # print("image transposed", image.transpose(2, 0, 1).shape)
+             
 

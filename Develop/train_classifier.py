@@ -76,12 +76,12 @@ def main():
 
     transform_train =  transforms.Compose([
         transforms.ToTensor(),
-        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
-        transforms.RandomPerspective(distortion_scale=0.1, p=0.1),
-        transforms.RandomRotation(degrees=(-15, 15)),
-        transforms.RandomAdjustSharpness(sharpness_factor=2),
-        transforms.RandomVerticalFlip(p=0.2),
         transforms.Resize((224,224)), 
+        transforms.RandomRotation(degrees=(-15, 15)),
+        transforms.RandomVerticalFlip(p=0.2),
+        # transforms.RandomPerspective(distortion_scale=0.1, p=0.1),
+        # transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+        # transforms.RandomAdjustSharpness(sharpness_factor=2),
         # Normalization from our data:
         transforms.Normalize(mean=[82.0899/255, 82.0899/255, 82.0899/255], std=[58.8442/255, 58.8442/255, 58.8442/255]),
     ])
@@ -144,8 +144,8 @@ def main():
         labels_train = []
         for i, batch in enumerate(train_dataloader):
             # for j in range(batch["image"].shape[0]):
-            #     cv2.imshow("hey", batch["image"][j].numpy().transpose(1, 2, 0))
-            #     cv2.waitKey(0)
+                # cv2.imshow("hey", batch["image"][j].numpy().transpose(1, 2, 0))
+                # cv2.waitKey(0)
 
 
             optimizer.zero_grad()

@@ -70,3 +70,59 @@ class Shot(object):
             }
             dict_l.append(entry_dict)
         return dict_l
+
+    def update_obj_classifications(self):
+        """
+        Updates the class names of objects according to their classification 
+        """
+
+        objs = {}
+
+        # Gather all objects according to their tracking id
+        for obj in self.object_list:
+
+            # We are only interested in objects that have a person classification
+            if obj.person_classification is None:
+                continue
+
+            if str(obj.oid) in objs:
+                objs[str(obj.oid)].append(obj)
+            else:
+                objs[str(obj.oid)] = [obj]
+
+
+        # We do not apply voting as that seems to give worse results
+        for obj_list in objs.values():
+            for obj in obj_list:
+                    obj.update_according_to_person_classification(obj.person_classification)
+        return
+
+        # print("BEFORE")
+        # for obj_list in objs.values():
+        #     for obj in obj_list:
+        #         print(obj.person_classification)
+        #     print("-----------------")
+    
+    
+        for obj_list in objs.values():
+                        # Gather votes
+            votes = {}
+            for obj in obj_list:
+                if obj.person_classification in votes:
+                    votes[obj.person_classification] += 1
+                else:
+                    votes[obj.person_classification] = 1
+
+            # Find winner
+            winner_idx = np.argmax(votes.values())
+            winner = list(votes.keys())[winner_idx]
+
+            # Update the objects class names and classifications according to the winner
+            for obj in obj_list:
+                obj.update_according_to_person_classification(winner)
+        
+        # print("AFTER")
+        # for obj_list in objs.values():
+        #     for obj in obj_list:
+        #         print(obj.person_classification)
+        #     print("-----------------")

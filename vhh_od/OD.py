@@ -5,7 +5,7 @@ from vhh_od.utils import *
 from vhh_od.Shot import Shot
 from vhh_od.CustObject import CustObject
 from vhh_od.visualize import visualize_video
-
+import vhh_od.Classifier as Classifier
 from deep_sort.deep_sort import DeepSort
 
 import numpy as np
@@ -262,6 +262,8 @@ class OD(object):
         self.resized_dim_y = self.config_instance.resize_dim[0]
         self.resized_dim_x = self.config_instance.resize_dim[1]
 
+        # self.classifier = Classifier.Classifier("wide_resnet50_2", "/data/share/fjogl/Classifier_models/best_wide_resnet50_2_2807.weights", self.device)
+
     def get_detection_data(self, use_tracker, frame_id, **kwargs):
         """
         Takes prediction data and outputs the detection data as a list of "CustObject"s
@@ -432,6 +434,10 @@ class OD(object):
 
             # run vhh_od detector
             predictions_l = self.runModel(model=self.model, tensor_l=shot_tensors, classes=self.classes, class_filter=self.class_selection)
+            # print("shot_tensors:", shot_tensors.shape)
+            # print("predicionts:", len(predictions_l))
+            # print("predicionts:", predictions_l)
+            # print("images:",  len(images_orig))
 
             # reset tracker for every new shot
             if self.use_tracker:
@@ -515,10 +521,9 @@ class OD(object):
                         detection_data = self.get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
 
                     # store predictions for each object in the frame
-                    for obj in detection_data:
-
+                    for obj in detection_data:   
                         results_od_l.append([obj.oid, shot_id, vid_name, start, stop, frame_id,
-                                             obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])
+                                             obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])                     
 
                         current_shot.addCustomObject(obj)
 
@@ -529,6 +534,9 @@ class OD(object):
                                   str(obj.bb_x2) + ";" + str(obj.bb_y2) + ";" + str(obj.bb_obj_conf) + ";" + str(obj.bb_class_conf) + ";" + \
                                   str(obj.bb_class_idx)
                             print(tmp)
+        
+            # Classifier.run_classifier_on_list_of_custom_objects(self.classifier, current_shot.object_list, shot_frames["Images"][frame_id - start])
+            # current_shot.update_obj_classifications()
 
         if (self.config_instance.debug_flag == True):
             vid_instance.printVIDInfo()

@@ -26,6 +26,7 @@ class CustObject(object):
         self.bb_y1 = bb_y1
         self.bb_x2 = bb_x2
         self.bb_y2 = bb_y2
+        self.person_classification = None
 
     def convert2String(self):
         """
@@ -37,6 +38,20 @@ class CustObject(object):
                   str(self.bb_y1) + ";" + str(self.bb_x2) + ";" + str(self.bb_y2) + ";" + str(self.object_conf) \
                   + ";" + str(self.class_score) + ";" + str(self.object_class_name) + ";" + str(self.object_class_idx)
         return tmp_str
+
+    def add_classification(self, classification):
+        if self.object_class_name != "person":
+            print("Warning: trying to set classification for a crop that is not a person")
+            return
+        self.person_classification = classification
+
+    def update_according_to_person_classification(self, classification):
+        if self.object_class_name != "person":
+            print("Warning: trying update classification for a crop that is not a person")
+            return
+        self.add_classification(classification)
+        if classification != "others":
+            self.object_class_name = "person ({0})".format(classification)
 
     def printObjectInfo(self):
         """
