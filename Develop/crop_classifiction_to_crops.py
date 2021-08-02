@@ -102,9 +102,9 @@ def get_crops(od_filename, sid, frame, x1, x2, y1, y2):
                 if int(cols[7]) <= int(cols[6]) or int(cols[9]) <= int(cols[8]):
                     continue
 
-                # area_frame = (int(cols[7])-int(cols[6]))*(int(cols[9])-int(cols[8]))
-                # if area / float(area_frame) > 1 + max_area_difference_in_percent or area / float(area_frame)< 1 - max_area_difference_in_percent:
-                #     continue
+                area_frame = (int(cols[7])-int(cols[6]))*(int(cols[9])-int(cols[8]))
+                if area / float(area_frame) > 1 + max_area_difference_in_percent or area / float(area_frame)< 1 - max_area_difference_in_percent:
+                    continue
 
                 frames.append(int(cols[4]))
                 x1.append(int(cols[6]))
