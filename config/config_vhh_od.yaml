@@ -101,7 +101,9 @@ OdCore:
   ###
   # Number of frames that a track remains in initialization phase. Tracking starts if object has been detected x times. Must be an integer >= 0
   DS_NUM_INIT: 3
-
+  ###
+  # Max number of frames to return at the same time from getFramesByShots_NEW
+  MAX_FRAMES: 2000
 
 Evaluation:
   ###

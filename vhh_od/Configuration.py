@@ -118,6 +118,8 @@ class Configuration:
         self.model_class_names_path = od_core_config['MODEL_CLASS_NAMES_PATH']
         self.model_class_selection_path = od_core_config['MODEL_CLASS_SELECTION_PATH']
 
+        self.max_frames = int(od_core_config['MAX_FRAMES'])
+
         #DeepSort Parameters
         if od_core_config["USE_DEEPSORT"] == "1":
             self.use_deepsort = True

@@ -414,8 +414,10 @@ class OD(object):
 
         printCustom(f"Starting Object Detection (Executing on device {self.device})... ", STDOUT_TYPE.INFO)
         results_od_l = []
-
-        for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=self.preprocess):
+        previous_shot_id = -1
+        frame_id = -1
+        
+        for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=self.preprocess, max_frames_per_return=self.config_instance.max_frames):
             shot_tensors = shot_frames["Tensors"]
             images_orig = shot_frames["Images"]
             current_shot = shot_frames["ShotInfo"]
@@ -424,6 +426,11 @@ class OD(object):
             vid_name = str(current_shot.movie_name)
             start = int(current_shot.start_pos)
             stop = int(current_shot.end_pos)
+
+            if shot_id != previous_shot_id:
+                frame_id = start
+
+            print("{0} / {1} shots".format(shot_id, len(vid_instance.shot_list)), end="\r")
 
             if(self.config_instance.debug_flag == True):
                 print("-----")
@@ -440,12 +447,12 @@ class OD(object):
             # print("images:",  len(images_orig))
 
             # reset tracker for every new shot
-            if self.use_tracker:
+            if self.use_tracker and previous_shot_id != shot_id:
                 self.tracker.reset()
 
             # for each frame, track predictions and store results
             for a in range(0, len(predictions_l)):
-                frame_id = start + a
+                frame_id += 1
                 frame_based_predictions = predictions_l[a]
                 obj_id = 0
 
@@ -467,7 +474,6 @@ class OD(object):
                     im, x, y, w, h = self.rescale_bb(images_orig[a], frame_based_predictions)
 
                     if self.use_tracker:
-
                         # Convert BBoxes from XYXY (corner points) to XYWH (center + width/height) representation
                         x = x+w/2
                         y = y+h/2
@@ -537,6 +543,7 @@ class OD(object):
         
             # Classifier.run_classifier_on_list_of_custom_objects(self.classifier, current_shot.object_list, shot_frames["Images"][frame_id - start])
             # current_shot.update_obj_classifications()
+            previous_shot_id = shot_id
 
         if (self.config_instance.debug_flag == True):
             vid_instance.printVIDInfo()
@@ -586,7 +593,6 @@ class OD(object):
                  the number of hits within a shot,
                  frame-based predictions for a whole shot
         """
-
         # run vhh_od detector
 
         # prepare pytorch dataloader

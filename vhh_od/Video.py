@@ -172,8 +172,11 @@ class Video(object):
 
         return frame_np
 
-    def getFramesByShots_NEW(self, preprocess_pytorch=None):
-
+    def getFramesByShots_NEW(self, preprocess_pytorch=None, max_frames_per_return  = 2000):
+        """
+        Returns Video Shot by Shot
+        If a single shot is longer than X frames, it will split the shot into frames of length at most X. 
+        """
         # initialize video capture
         cap = cv2.VideoCapture(self.vidFile)
 
@@ -186,48 +189,58 @@ class Video(object):
             sid = int(shot.sid)
             start_idx = int(shot.start_pos)
             stop_idx = int(shot.end_pos)
+            shot_is_not_over = True
 
-            # print(f"Retrieving Frames for Shot {sid} (frames {frame_number} to {stop_idx})...")
-            while frame_number <= stop_idx:
-                # read next frame
-                success, image = cap.read()
-                frame_number = frame_number + 1
-                #print(frame_number)
+            while shot_is_not_over:
+                # print(f"Retrieving Frames for Shot {sid} (frames {frame_number} to {stop_idx})...")
+                while frame_number <= stop_idx and len(frame_l) < max_frames_per_return:
+                    
+                    # read next frame
+                    success, image = cap.read()
+                    frame_number = frame_number + 1
+                    #print(frame_number)
 
-                # if(start_idx == stop_idx):
-                #    cv2.imshow("frame", image)
-                #    k = cv2.waitKey()
+                    # if(start_idx == stop_idx):
+                    #    cv2.imshow("frame", image)
+                    #    k = cv2.waitKey()
 
-                # skip to start position (for gradual cuts)
-                if frame_number < start_idx:
-                    # print(frame_number)
+                    # skip to start position (for gradual cuts)
+                    if frame_number < start_idx:
+                        # print(frame_number)
+                        continue
+
+                    if success == True:
+                        # if ( (frame_number >= start_idx and frame_number <= stop_idx) or (start_idx == stop_idx) ):
+                        if (preprocess_pytorch != None):
+                            frames_orig.append(image)
+                            image = preprocess_pytorch(image)
+                            frame_l.append(image)
+                        else:
+                            frames_orig.append(image)
+                    else:
+                        break
+
+                if frame_l == []:
                     continue
 
-                if success == True:
-                    # if ( (frame_number >= start_idx and frame_number <= stop_idx) or (start_idx == stop_idx) ):
-                    if (preprocess_pytorch != None):
-                        frames_orig.append(image)
-                        image = preprocess_pytorch(image)
-                        frame_l.append(image)
-                    else:
-                        frames_orig.append(image)
+                if preprocess_pytorch is not None:
+                    all_tensors_l = torch.stack(frame_l)
+                    yield {"Tensors": all_tensors_l, "Images": np.array(frames_orig), "ShotInfo": shot}
                 else:
-                    break
+                    yield {"Tensors": None, "Images": np.array(frames_orig), "ShotInfo": shot}
 
-            if frame_l == []:
-                continue
-
-            if preprocess_pytorch is not None:
-                all_tensors_l = torch.stack(frame_l)
-                yield {"Tensors": all_tensors_l, "Images": np.array(frames_orig), "ShotInfo": shot}
-            else:
-                yield {"Tensors": None, "Images": np.array(frames_orig), "ShotInfo": shot}
+                # End the shot if the current frame is the last frame (or an even later frame)
+                if not frame_number <= stop_idx:
+                    shot_is_not_over = False
+                # If the shot is not over, prepare to return more frames in this shot   
+                else:
+                    frame_l = []
+                    frames_orig = []
 
         cap.release()
 
-        # Returns Video Shot by Shot
+    # Returns Video Shot by Shot
     def getFramesByShots(self, preprocess_pytorch=None):
-
         # initialize video capture
         cap = cv2.VideoCapture(self.vidFile)
         cnt = 0
