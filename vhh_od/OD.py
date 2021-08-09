@@ -262,7 +262,7 @@ class OD(object):
         self.resized_dim_y = self.config_instance.resize_dim[0]
         self.resized_dim_x = self.config_instance.resize_dim[1]
 
-        # self.classifier = Classifier.Classifier("wide_resnet50_2", "/data/share/fjogl/Classifier_models/best_wide_resnet50_2_2807.weights", self.device)
+        self.classifier = Classifier.Classifier("wide_resnet50_2", "/data/share/fjogl/Classifier_models/best_wide_resnet50_2_0308.weights", self.device)
 
     def get_detection_data(self, use_tracker, frame_id, **kwargs):
         """
@@ -427,6 +427,9 @@ class OD(object):
             start = int(current_shot.start_pos)
             stop = int(current_shot.end_pos)
 
+            # Collect all custom objects so we can run the classifier on them
+            new_custom_objects = []
+
             if shot_id != previous_shot_id:
                 frame_id = start
 
@@ -441,10 +444,6 @@ class OD(object):
 
             # run vhh_od detector
             predictions_l = self.runModel(model=self.model, tensor_l=shot_tensors, classes=self.classes, class_filter=self.class_selection)
-            # print("shot_tensors:", shot_tensors.shape)
-            # print("predicionts:", len(predictions_l))
-            # print("predicionts:", predictions_l)
-            # print("images:",  len(images_orig))
 
             # reset tracker for every new shot
             if self.use_tracker and previous_shot_id != shot_id:
@@ -455,6 +454,7 @@ class OD(object):
                 frame_id += 1
                 frame_based_predictions = predictions_l[a]
                 obj_id = 0
+                detection_data = []
 
                 if(self.config_instance.debug_flag == True):
                     print("##################################################################################")
@@ -468,8 +468,10 @@ class OD(object):
                             stop) + ";" + str(frame_id) + ";" + str(None) + ";" + str(None) + ";" + str(
                             None) + ";" + str(None) + ";" + str(None) + ";" + str(None) + ";" + str(None)
                         print(tmp)
-                else:
 
+                    # Since we need to advance the framecounter of the classifier, we keep track of frames with no predictions
+                    new_custom_objects.append(None)
+                else:
                     # rescale bounding boxes to fit original video resolution
                     im, x, y, w, h = self.rescale_bb(images_orig[a], frame_based_predictions)
 
@@ -489,9 +491,11 @@ class OD(object):
                         num_results = len(tracking_results)
                         #print(f"Outputs:\n{tracking_results}")
 
-                        detection_data = []
                         if num_results > 0:
                             detection_data = self.get_detection_data(True, frame_id = frame_id, tracking_results = tracking_results)
+                        else:
+                            # Since we need to advance the framecounter of the classifier, we keep track of frames with no predictions
+                            new_custom_objects.append(None)
 
                         # visualization
                         '''
@@ -540,11 +544,12 @@ class OD(object):
                                   str(obj.bb_x2) + ";" + str(obj.bb_y2) + ";" + str(obj.bb_obj_conf) + ";" + str(obj.bb_class_conf) + ";" + \
                                   str(obj.bb_class_idx)
                             print(tmp)
+                    new_custom_objects += detection_data
         
-            # Classifier.run_classifier_on_list_of_custom_objects(self.classifier, current_shot.object_list, shot_frames["Images"][frame_id - start])
-            # current_shot.update_obj_classifications()
+            Classifier.run_classifier_on_list_of_custom_objects(self.classifier, new_custom_objects, shot_frames["Images"])
+            current_shot.update_obj_classifications()
             previous_shot_id = shot_id
-
+        
         if (self.config_instance.debug_flag == True):
             vid_instance.printVIDInfo()
 

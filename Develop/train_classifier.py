@@ -13,8 +13,10 @@ Trains the person classifier.
 """
 
 
-data_path_train = "/data/ext/VHH/datasets/Classifier_data/train_val"
-data_path_test = "/data/ext/VHH/datasets/Classifier_data/test"
+data_path_train = "/data/ext/VHH/datasets/Classifier_data_tracking/train"
+data_path_val = "/data/ext/VHH/datasets/Classifier_data_tracking/val"
+data_path_test = "/data/ext/VHH/datasets/Classifier_data_tracking/test"
+
 model_folder = "/data/share/fjogl/Classifier_models"
 
 do_early_stopping = True
@@ -77,6 +79,7 @@ def main():
     transform_train =  transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((224,224)), 
+        transforms.Grayscale(num_output_channels=3),
         transforms.RandomRotation(degrees=(-15, 15)),
         transforms.RandomVerticalFlip(p=0.2),
         # transforms.RandomPerspective(distortion_scale=0.1, p=0.1),
@@ -88,9 +91,9 @@ def main():
 
     transform_test = Classifier.test_transform
     
-    train_val_set = Classifier.PersonsDataset(data_path_train)
-    testset = Classifier.PersonsDataset(data_path_test, dropFilesFrom=None)
-    trainset, valset = torch.utils.data.random_split(train_val_set, ((int(len(train_val_set)*train_size_percentage), len(train_val_set) - int(len(train_val_set)*train_size_percentage))))
+    trainset = Classifier.PersonsDataset(data_path_train)
+    valset = Classifier.PersonsDataset(data_path_val)
+    testset = Classifier.PersonsDataset(data_path_test)
 
     trainset_size = len(trainset)
     valset_size = len(valset)
@@ -194,7 +197,13 @@ def main():
             print("Training will be stopped since validation macro_f1 has not improved for {0} epochs".format(epochs_without_improvement))
             break
         
+    # Store the final model 
+    torch.save(model.state_dict(), os.path.join(model_folder, "last_epoch_" + model_name + ".weights"))
+
+
     # Test model
+    # Get model with highest validation F1
+    model.load_state_dict(torch.load("best_" + model_name + ".weights"))
     test_metrics = Classifier.evaluate(test_dataloader, "test", epoch + 1, device, model, criterion, do_class_metrics=True)
     log_metrics(test_metrics, epoch + 1, "test")
     print("Test metrics: ", test_metrics)

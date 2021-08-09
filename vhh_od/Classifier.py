@@ -17,6 +17,7 @@ batchsize = 8
 test_transform =  transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((224,224)),
+        transforms.Grayscale(num_output_channels=3),
         # Normalization from our data:
         transforms.Normalize(mean=[76.031337/255, 76.031337/255, 76.031337/255], std=[57.919809/255, 57.919809/255, 57.919809/255]),
     ])
@@ -201,18 +202,39 @@ class obj_list_loader:
         self.relevant_frames = relevant_frames
 
     def loop(self):
+
+        # if self.custom_obj_list is None or len(self.custom_obj_list) == 0:
+        #     return None
+
         crops = None
         indices = []
 
+        curr_frame = -1
+        curr_frame_id = -1
+
         # Indices of objects in which persons appear
         for i, obj in enumerate(self.custom_obj_list):
+
+            # None means that we did not find predictions for this frame
+            if obj is None:
+                curr_frame += 1
+                continue
+
+            # If an object is from a new frame then increase our frame counter
+            if obj.fid > curr_frame_id:
+                    curr_frame += 1
+                    curr_frame_id = obj.fid
+
             if obj.object_class_name == "person":
+                rel_image = self.relevant_frames[curr_frame]
+
                 # Sometimes OD predicts boundary boxes with coordinates < 0, cannot crop those so ignore them
-                if(obj.bb_y1 < 0) or (obj.bb_y2 < 0) or (obj.bb_x1 < 0) or (obj.bb_x2 < 0) or (obj.bb_y2 <= obj.bb_y1) or (obj.bb_x2 <= obj.bb_x1):
+                if(obj.bb_y1 < 0) or (obj.bb_y2 < 0) or (obj.bb_x1 < 0) or (obj.bb_x2 < 0) or (obj.bb_y2 <= obj.bb_y1) or (obj.bb_x2 <= obj.bb_x1) \
+                or (obj.bb_y2 >= rel_image.shape[0]) or (obj.bb_x2 >= rel_image.shape[1]):
                     continue
                 
                 indices.append(i)
-                image = self.relevant_frames[obj.bb_y1:obj.bb_y2, obj.bb_x1:obj.bb_x2]
+                image = rel_image[obj.bb_y1:obj.bb_y2, obj.bb_x1:obj.bb_x2]
                 image = test_transform(image)
 
                 # Add a new dimenions in front on which we will append the different images
@@ -222,6 +244,8 @@ class obj_list_loader:
                     crops = torch.cat((crops, image), 0)
                 else:
                     crops = image
+            else:
+                continue
 
             if len(indices) == batchsize:
                 yield crops, indices
@@ -233,13 +257,13 @@ class obj_list_loader:
 
 
 def run_classifier_on_list_of_custom_objects(classifier, custom_obj_list, relevant_frames):
+    # print("relevant frames:", len(relevant_frames))
     generator = obj_list_loader(custom_obj_list, relevant_frames)
 
     for crops, indices in generator.loop():
         # No crops means nothing to classify
         if crops is None:
             return
-
 
         crops = torch.split(crops, batchsize, dim=0)
         idx = 0
@@ -249,11 +273,3 @@ def run_classifier_on_list_of_custom_objects(classifier, custom_obj_list, releva
             for class_name in class_names:
                 custom_obj_list[indices[idx]].add_classification(class_name)
                 idx += 1
-
-
-            # cv2.imshow("hey", image)
-            # cv2.waitKey(0)
-            # print("og image", image.shape)
-            # print("image transposed", image.transpose(2, 0, 1).shape)
-             
-
