@@ -71,7 +71,7 @@ class Shot(object):
             dict_l.append(entry_dict)
         return dict_l
 
-    def update_obj_classifications(self):
+    def update_obj_classifications(self, use_majority_voting):
         """
         Updates the class names of objects according to their classification 
         """
@@ -91,21 +91,16 @@ class Shot(object):
                 objs[str(obj.oid)] = [obj]
 
 
-        # We do not apply voting as that seems to give worse results
+        # Do NOT use majority voting
+        if not use_majority_voting:
+            for obj_list in objs.values():
+                for obj in obj_list:
+                        obj.update_according_to_person_classification(obj.person_classification)
+            return
+        
+        # Do majority voting    
         for obj_list in objs.values():
-            for obj in obj_list:
-                    obj.update_according_to_person_classification(obj.person_classification)
-        return
-
-        # print("BEFORE")
-        # for obj_list in objs.values():
-        #     for obj in obj_list:
-        #         print(obj.person_classification)
-        #     print("-----------------")
-    
-    
-        for obj_list in objs.values():
-                        # Gather votes
+            # Gather votes
             votes = {}
             for obj in obj_list:
                 if obj.person_classification in votes:
@@ -120,9 +115,3 @@ class Shot(object):
             # Update the objects class names and classifications according to the winner
             for obj in obj_list:
                 obj.update_according_to_person_classification(winner)
-        
-        # print("AFTER")
-        # for obj_list in objs.values():
-        #     for obj in obj_list:
-        #         print(obj.person_classification)
-        #     print("-----------------")

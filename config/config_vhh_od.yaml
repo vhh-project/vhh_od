@@ -25,7 +25,7 @@ OdCore:
   SAVE_RAW_RESULTS: 0       # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the raw results.
-  PATH_RAW_RESULTS: "./results/vhh_od/raw_results/"
+  PATH_RAW_RESULTS: "/data/share/fjogl/vhh_od_dev_results/raw_results"
   ###
   # This parameter is used to specify the prefix for the results file.
   PREFIX_RAW_RESULTS: "results_raw_"
@@ -38,7 +38,7 @@ OdCore:
   SAVE_FINAL_RESULTS: 1     # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the final results.
-  PATH_FINAL_RESULTS: "./results/vhh_od/final_results/"
+  PATH_FINAL_RESULTS: "/data/share/fjogl/vhh_od_dev_results/final_results/"
   ###
   # This parameter is used to specify the prefix for the results file.
   PREFIX_FINAL_RESULTS: "results_"
@@ -48,11 +48,11 @@ OdCore:
 
   ###
   # This parameter is used to specify the path to the videos.
-  PATH_VIDEOS: "./videos"
+  PATH_VIDEOS: "/data/share/fjogl/vhh_od_dev_results/videos/"
 
   ###
   # This parameter is used to specify the path to the pre-trained model.
-  PATH_PRETRAINED_MODEL: "./config/yolov3/yolov3.weights"
+  PATH_PRETRAINED_MODEL: "/data/share/fjogl/vhh_od_dev_results/pretrained_models/yolov3.weights"
 
   ###
   # yolov3 detector
@@ -104,6 +104,19 @@ OdCore:
   ###
   # Max number of frames to return at the same time from getFramesByShots_NEW
   MAX_FRAMES: 2000
+  ###
+  # Enables the classifier
+  USE_CLASSIFIER: True
+  ###
+  # Enable majority classification, a detected object will be given the classification which appears the most often 
+  # (this applies only to classification and not to object detection)
+  USE_CLASSIFIER_MAJORITY_VOTING: True
+  ###
+  # Path to the model the classifier is supposed to use
+  PATH_TO_CLASSIFIER_MODEL: "/data/share/fjogl/Classifier_models/best_wide_resnet50_2_0308.weights"
+  ###
+  # Architecture of the model the classifier is using
+  CLASSIFIER_MODEL_ARCHITECTURE: "wide_resnet50_2"
 
 Evaluation:
   ###

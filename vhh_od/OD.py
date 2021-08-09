@@ -262,7 +262,8 @@ class OD(object):
         self.resized_dim_y = self.config_instance.resize_dim[0]
         self.resized_dim_x = self.config_instance.resize_dim[1]
 
-        self.classifier = Classifier.Classifier("wide_resnet50_2", "/data/share/fjogl/Classifier_models/best_wide_resnet50_2_0308.weights", self.device)
+        if self.config_instance.use_classifier:
+            self.classifier = Classifier.Classifier(self.config_instance.classifier_model_architecture, self.config_instance.classifier_model_path, self.device)
 
     def get_detection_data(self, use_tracker, frame_id, **kwargs):
         """
@@ -546,8 +547,9 @@ class OD(object):
                             print(tmp)
                     new_custom_objects += detection_data
         
-            Classifier.run_classifier_on_list_of_custom_objects(self.classifier, new_custom_objects, shot_frames["Images"])
-            current_shot.update_obj_classifications()
+            if self.config_instance.use_classifier:
+                Classifier.run_classifier_on_list_of_custom_objects(self.classifier, new_custom_objects, shot_frames["Images"])
+                current_shot.update_obj_classifications(self.config_instance.use_classifier_majority_voting)
             previous_shot_id = shot_id
         
         if (self.config_instance.debug_flag == True):
