@@ -7,30 +7,49 @@ from torchvision import models, transforms
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 import wandb
-import random, os
+import random, os, argparse
+
 """
 Trains the person classifier.
 """
 
 
-data_path_train = "/data/ext/VHH/datasets/Classifier_data_tracking/train"
-data_path_val = "/data/ext/VHH/datasets/Classifier_data_tracking/val"
-data_path_test = "/data/ext/VHH/datasets/Classifier_data_tracking/test"
+data_path_train = "/data/ext/VHH/datasets/Classifier_data_final/train"
+data_path_val = "/data/ext/VHH/datasets/Classifier_data_final/val"
+data_path_test = "/data/ext/VHH/datasets/Classifier_data_final/test"
 
-model_folder = "/data/share/fjogl/Classifier_models"
+model_folder = "/data/ext/VHH/datasets/Classifier_models"
 
 do_early_stopping = True
-max_epochs_without_improvement = 20
 
-batchsize = 32
-epochs = 1000
-lr = 0.0001
-# Momentum for SGD
-momentum = 0.9
-train_size_percentage = 0.8
+#
+# ARGUMENT PARSING
+#
 
-optimizer_name ="AdamW"
-model_name = "wide_resnet50_2"
+parser = argparse.ArgumentParser(description="Train the persons classifier")
+parser.add_argument("-e", "--experiment_name", type=str, default="", help="Name of the experiment, to make weight names unique")
+parser.add_argument('-b', '--batchsize', type=int, default=32)
+parser.add_argument("--epochs", type=int, default=300, help="Number of epochs")
+parser.add_argument("-s", "--stopping_epochs", type=int, default=20, help="Number of epochs without f1 improvement until we stop training")
+parser.add_argument("--lr", type=float, default=0.0001, help="Learning rate")
+parser.add_argument("-m", "--momentum", type=float, default=0.9, help="Optimizer momentum (only for sgd)")
+parser.add_argument("-w", "--weight_decay", type=float, default=0.01, help="Weight decay")
+parser.add_argument("-o", "--optimizer", type=str, default="AdamW", help="Optimizer to use")
+parser.add_argument("-a", "--architecture_name", type=str, default="wide_resnet50_2", help="The model whose pretrained weights and architecture we will use")
+args = parser.parse_args()
+
+max_epochs_without_improvement = args.stopping_epochs
+batchsize = args.batchsize
+epochs = args.epochs
+lr = args.lr
+momentum = args.momentum
+weight_decay = args.weight_decay
+optimizer_name = args.optimizer
+model_name = args.architecture_name
+
+
+best_model_path = os.path.join(model_folder, args.experiment_name + "_best_" + model_name + ".weights")
+last_model_path = os.path.join(model_folder, args.experiment_name + "_last_" + model_name + ".weights")
 
 class DatasetWrapper(Dataset):
     """"
@@ -80,13 +99,12 @@ def main():
         transforms.ToTensor(),
         transforms.Resize((224,224)), 
         transforms.Grayscale(num_output_channels=3),
-        transforms.RandomRotation(degrees=(-15, 15)),
+        transforms.RandomRotation(degrees=(-5, 5)),
         transforms.RandomVerticalFlip(p=0.2),
         # transforms.RandomPerspective(distortion_scale=0.1, p=0.1),
         # transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
         # transforms.RandomAdjustSharpness(sharpness_factor=2),
-        # Normalization from our data:
-        transforms.Normalize(mean=[82.0899/255, 82.0899/255, 82.0899/255], std=[58.8442/255, 58.8442/255, 58.8442/255]),
+        Classifier.transform_normalize,
     ])
 
     transform_test = Classifier.test_transform
@@ -116,9 +134,11 @@ def main():
         "model_name": model_name,
         "learning_rate": lr, 
         "max_epochs_without_improvement": max_epochs_without_improvement, 
-        "train_set_percentage": train_size_percentage,
         "optimizer": optimizer_name,
-        "batchsize": batchsize}
+        "batchsize": batchsize,
+        "max_epochs": epochs,
+        "momentum": momentum, 
+        "weight_decay": weight_decay}
 
     # Todo: try sgd
     if optimizer_name == "AdamW":
@@ -168,7 +188,7 @@ def main():
 
             # Logging
             wandb.log({
-            "train/loss":loss.cpu().item(),
+            "train/loss":loss.cpu().item()/ batch["image"].shape[0],
             "epochs": epoch + float(i) / len(train_dataloader)
             })
 
@@ -187,7 +207,7 @@ def main():
         # Check if this is our best model yet
         if val_metrics["macro_f1"] > previous_best_f1:
             previous_best_f1 = val_metrics["macro_f1"]
-            torch.save(model.state_dict(), os.path.join(model_folder, "best_" + model_name + ".weights"))
+            torch.save(model.state_dict(), best_model_path)
             epochs_without_improvement = 0
         else:
             epochs_without_improvement += 1            
@@ -198,12 +218,12 @@ def main():
             break
         
     # Store the final model 
-    torch.save(model.state_dict(), os.path.join(model_folder, "last_epoch_" + model_name + ".weights"))
+    torch.save(model.state_dict(), last_model_path)
 
 
     # Test model
     # Get model with highest validation F1
-    model.load_state_dict(torch.load("best_" + model_name + ".weights"))
+    model.load_state_dict(torch.load(best_model_path))
     test_metrics = Classifier.evaluate(test_dataloader, "test", epoch + 1, device, model, criterion, do_class_metrics=True)
     log_metrics(test_metrics, epoch + 1, "test")
     print("Test metrics: ", test_metrics)

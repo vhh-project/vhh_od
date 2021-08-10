@@ -14,12 +14,17 @@ used_classes = ["others", "soldier", "corpse", "person_with_kz_uniform"]
 n_classes = len(used_classes)
 batchsize = 8
 
+std = 55.7495 / 255
+mean = 87.2851 / 255
+
+transform_normalize = transforms.Normalize(mean=[mean, mean, mean], std=[std, std, std])
+
 test_transform =  transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((224,224)),
         transforms.Grayscale(num_output_channels=3),
         # Normalization from our data:
-        transforms.Normalize(mean=[76.031337/255, 76.031337/255, 76.031337/255], std=[57.919809/255, 57.919809/255, 57.919809/255]),
+        transform_normalize,
     ])
 
 def class_to_idx(class_name):
@@ -99,8 +104,12 @@ class ClassifierModel(nn.Module):
             self.model = models.densenet121(pretrained=True)
             num_ftrs = self.model.classifier.in_features
             self.model.classifier = nn.Linear(num_ftrs, 4)
-        elif model_name == "vgg11_bn":
-            self.model = models.vgg11_bn(pretrained=True)
+        elif model_name == "vgg11":
+            self.model = models.vgg11(pretrained=True)
+            num_ftrs = self.model.classifier[6].in_features
+            self.model.classifier[6] = nn.Linear(num_ftrs,4)
+        elif model_name == "vgg16":
+            self.model = models.vgg16(pretrained=True)
             num_ftrs = self.model.classifier[6].in_features
             self.model.classifier[6] = nn.Linear(num_ftrs,4)
         elif model_name == "wide_resnet50_2":
