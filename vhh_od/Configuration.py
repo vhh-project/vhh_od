@@ -120,8 +120,8 @@ class Configuration:
 
         self.max_frames = int(od_core_config['MAX_FRAMES'])
 
-        self.use_classifier = bool(od_core_config['USE_CLASSIFIER'])
-        self.use_classifier_majority_voting = bool(od_core_config['USE_CLASSIFIER_MAJORITY_VOTING'])
+        self.use_classifier = od_core_config['USE_CLASSIFIER'] == "1"
+        self.use_classifier_majority_voting = od_core_config['USE_CLASSIFIER_MAJORITY_VOTING'] == "1"
         self.classifier_model_path = od_core_config['PATH_TO_CLASSIFIER_MODEL']
         self.classifier_model_architecture = od_core_config['CLASSIFIER_MODEL_ARCHITECTURE']
 

@@ -106,14 +106,14 @@ OdCore:
   MAX_FRAMES: 2000
   ###
   # Enables the classifier
-  USE_CLASSIFIER: True
+  USE_CLASSIFIER: 1
   ###
   # Enable majority classification, a detected object will be given the classification which appears the most often 
   # (this applies only to classification and not to object detection)
-  USE_CLASSIFIER_MAJORITY_VOTING: True
+  USE_CLASSIFIER_MAJORITY_VOTING: 1
   ###
   # Path to the model the classifier is supposed to use
-  PATH_TO_CLASSIFIER_MODEL: "/data/share/fjogl/Classifier_models/best_wide_resnet50_2_0308.weights"
+  PATH_TO_CLASSIFIER_MODEL: "/data/ext/VHH/datasets/Classifier_models/best_wide_resnet50_2.weights"
   ###
   # Architecture of the model the classifier is using
   CLASSIFIER_MODEL_ARCHITECTURE: "wide_resnet50_2"
