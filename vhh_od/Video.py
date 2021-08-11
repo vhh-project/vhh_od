@@ -220,10 +220,7 @@ class Video(object):
                     else:
                         break
 
-                if frame_l == []:
-                    continue
-
-                if preprocess_pytorch is not None:
+                if frame_l != [] and preprocess_pytorch is not None:
                     all_tensors_l = torch.stack(frame_l)
                     yield {"Tensors": all_tensors_l, "Images": np.array(frames_orig), "ShotInfo": shot}
                 else:

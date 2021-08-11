@@ -434,6 +434,11 @@ class OD(object):
             if shot_id != previous_shot_id:
                 frame_id = start
 
+            # Only run the model if we actually have tensors
+            if shot_tensors is None:
+                previous_shot_id = shot_id
+                continue
+
             print("{0} / {1} shots".format(shot_id, len(vid_instance.shot_list)), end="\r")
 
             if(self.config_instance.debug_flag == True):
