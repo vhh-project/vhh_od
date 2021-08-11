@@ -113,7 +113,7 @@ OdCore:
   USE_CLASSIFIER_MAJORITY_VOTING: 1
   ###
   # Path to the model the classifier is supposed to use
-  PATH_TO_CLASSIFIER_MODEL: "/data/ext/VHH/datasets/Classifier_models/best_wide_resnet50_2.weights"
+  PATH_TO_CLASSIFIER_MODEL: "/data/ext/VHH/datasets/Classifier_models/wd_0.05_best_wide_resnet50_2.weights"
   ###
   # Architecture of the model the classifier is using
   CLASSIFIER_MODEL_ARCHITECTURE: "wide_resnet50_2"
