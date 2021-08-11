@@ -75,7 +75,6 @@ class Shot(object):
         """
         Updates the class names of objects according to their classification 
         """
-
         objs = {}
 
         # Gather all objects according to their tracking id
@@ -89,7 +88,6 @@ class Shot(object):
                 objs[str(obj.oid)].append(obj)
             else:
                 objs[str(obj.oid)] = [obj]
-
 
         # Do NOT use majority voting
         if not use_majority_voting:

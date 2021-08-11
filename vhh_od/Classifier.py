@@ -62,6 +62,9 @@ def get_metrics(outputs, labels, do_class_metrics = False):
     return metrics
 
 class Classifier():
+    """
+    Classifies an image of a person
+    """
     def __init__(self, model_name, path_to_weights, device):
         self.model = ClassifierModel(model_name)
         self.model.load_state_dict(torch.load(path_to_weights))
@@ -211,10 +214,6 @@ class obj_list_loader:
         self.relevant_frames = relevant_frames
 
     def loop(self):
-
-        # if self.custom_obj_list is None or len(self.custom_obj_list) == 0:
-        #     return None
-
         crops = None
         indices = []
 
@@ -266,7 +265,6 @@ class obj_list_loader:
 
 
 def run_classifier_on_list_of_custom_objects(classifier, custom_obj_list, relevant_frames):
-    # print("relevant frames:", len(relevant_frames))
     generator = obj_list_loader(custom_obj_list, relevant_frames)
 
     for crops, indices in generator.loop():

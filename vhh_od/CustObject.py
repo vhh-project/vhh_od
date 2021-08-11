@@ -47,7 +47,6 @@ class CustObject(object):
 
     def update_according_to_person_classification(self, classification):
         if self.object_class_name != "person":
-            print("Warning: trying update classification for a crop that is not a person")
             return
         self.add_classification(classification)
         if classification != "others":

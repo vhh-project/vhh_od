@@ -12,8 +12,7 @@ Ensure that you set both the path to the model and the name of the used architec
 data_path_val = "/data/ext/VHH/datasets/Classifier_data_final/val"
 data_path_test = "/data/ext/VHH/datasets/Classifier_data_final/test"
 
-# model_path = "/data/ext/VHH/datasets/Classifier_models/best_wide_resnet50_2_0308.weights"
-model_path = "/data/ext/VHH/datasets/Classifier_models/last_epoch_wide_resnet50_2.weights"
+model_path = "/data/ext/VHH/datasets/Classifier_models/wd_0.05_best_wide_resnet50_2.weights"
 model_name = "wide_resnet50_2"
 
 batchsize = 32
