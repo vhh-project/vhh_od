@@ -5,17 +5,21 @@ import numpy as np
 import torch
 from torchvision import models, transforms
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import wandb
 import random
 import sklearn.metrics
+import yaml
 
-used_classes = ["others", "soldier", "corpse", "person_with_kz_uniform"]
-n_classes = len(used_classes)
+path_to_config = "config/config_vhh_od.yaml"
 batchsize = 8
-
 std = 55.7495 / 255
 mean = 87.2851 / 255
+
+fp = open(path_to_config, 'r')
+config = yaml.load(fp, Loader=yaml.BaseLoader)
+used_classes = config['OdCore']['CLASSES_FOR_CLASSIFIER']
+n_classes = len(used_classes)
 
 transform_normalize = transforms.Normalize(mean=[mean, mean, mean], std=[std, std, std])
 
@@ -106,18 +110,18 @@ class ClassifierModel(nn.Module):
         if model_name == "densenet121":
             self.model = models.densenet121(pretrained=True)
             num_ftrs = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(num_ftrs, 4)
+            self.model.classifier = nn.Linear(num_ftrs, n_classes)
         elif model_name == "vgg11":
             self.model = models.vgg11(pretrained=True)
             num_ftrs = self.model.classifier[6].in_features
-            self.model.classifier[6] = nn.Linear(num_ftrs,4)
+            self.model.classifier[6] = nn.Linear(num_ftrs,n_classes)
         elif model_name == "vgg16":
             self.model = models.vgg16(pretrained=True)
             num_ftrs = self.model.classifier[6].in_features
-            self.model.classifier[6] = nn.Linear(num_ftrs,4)
+            self.model.classifier[6] = nn.Linear(num_ftrs,n_classes)
         elif model_name == "wide_resnet50_2":
             self.model = models.wide_resnet50_2(pretrained=True)
-            self.model.fc = nn.Linear(2048, 4)
+            self.model.fc = nn.Linear(2048, n_classes)
         self.input_size = 224
 
     def forward(self, x):
