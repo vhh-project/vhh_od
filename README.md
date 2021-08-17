@@ -22,6 +22,8 @@ The following instructions have to be done to used this library in your own appl
    * Ubuntu 18.04 LTS
    * CUDA 10.1 + cuDNN
    * python version 3.6.x
+
+We developed and tested this module with pytorch 1.8-1+cu111 and torchvision 0.9.1+cu111.
    
 ### 0 Environment Setup (optional)
 
