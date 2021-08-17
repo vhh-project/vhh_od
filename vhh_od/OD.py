@@ -395,6 +395,10 @@ class OD(object):
             num_shots = len(shots_per_vid_np)
             offset = 0
 
+        # Ensure tracker is empty
+        self.tracker.tracker.clear_id()
+        self.tracker.reset()
+
         # load video instance
         vid_name = shots_np[0][0]
         vid_instance = Video()
