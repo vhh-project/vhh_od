@@ -117,6 +117,9 @@ OdCore:
   ###
   # Architecture of the model the classifier is using
   CLASSIFIER_MODEL_ARCHITECTURE: "wide_resnet50_2"
+  ###
+  # Classes to use for the classifier (this influences training, testing and inference)
+  CLASSES_FOR_CLASSIFIER: ["others", "soldier", "corpse", "person_with_kz_uniform"]
 
 Evaluation:
   ###
