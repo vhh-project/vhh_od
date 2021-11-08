@@ -66,7 +66,6 @@ class OD(object):
         self.color_map = cm.get_cmap('gist_rainbow', self.num_colors)
 
 
-    # def runOnAllFramesInFolder(self, folder_path, output_folder_path, do_store_crops = True, do_evaluate_model = False):
     def runOnAllFramesInFolder(self, folder_path, do_store_crops = True, do_evaluate_model = False, **kwargs):
         """
         Runs object detection on each picture, and stores crops of the boundary boxes as separate images
@@ -84,8 +83,6 @@ class OD(object):
 
         self.advanced_init()
 
-        
-       
         nr_crops = 0
         nr_correct_crops = 0
         image_files = os.listdir(folder_path)
@@ -135,8 +132,6 @@ class OD(object):
             # Switch color channels 
             im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
 
-
-
             if len(frame_based_predictions) > 0:
                 idx_to_evaluate = np.random.randint(0, len(detection_data))
 
@@ -148,7 +143,6 @@ class OD(object):
                     # Sometimes OD predicts boundary boxes with coordinates < 0, cannot crop those so ignore them
                     if(data.bb_y1 < 0) or (data.bb_y2 < 0) or (data.bb_x1 < 0) or (data.bb_x2 < 0):
                         continue
-
 
                     # Store crops
                     if do_store_crops:
@@ -164,7 +158,6 @@ class OD(object):
                         information += '\n'
 
                     # Check if crop is correct
-                    #if do_evaluate_model and a in idx_for_evaluation:
                     if do_evaluate_model and i == idx_to_evaluate:
                         if crops_evaluated >= kwargs["n_annotations"]:
                             continue
@@ -201,9 +194,7 @@ class OD(object):
                                 need_to_evaluate = False
                             else:
                                 print("Neither 0 or 1 detected, please make sure to not use the numpad.")
-                        print("Annotated {0} / {1}".format(crops_evaluated, kwargs["n_annotations"]))
-                        
-
+                        print("Annotated {0} / {1}".format(crops_evaluated, kwargs["n_annotations"]))               
                    
         if do_store_crops:
              # File to store crop information in
@@ -330,7 +321,6 @@ class OD(object):
             class_idx = int(object_classes[object_idx])
             class_name = self.classes[class_idx]
 
-            # (x1, y1, x2, y2, object_conf, class_score, class_pred)
             obj_instance = CustObject(oid=instance_id,
                                         fid=frame_id,
                                         object_class_name=class_name,
@@ -357,6 +347,59 @@ class OD(object):
         w = (frame_based_predictions[:, 2]).cpu().numpy() * x_factor - x
         h = (frame_based_predictions[:, 3]).cpu().numpy() * y_factor - y
         return im, x, y, w, h
+
+    def apply_tracker(self, x, y, w, h, im, frame_id, new_custom_objects, frame_based_predictions, vis = False):
+         # Convert BBoxes from XYXY (corner points) to XYWH (center + width/height) representation
+        x = x+w/2
+        y = y+h/2
+        bbox_xywh = np.array([[x[i],y[i],w[i],h[i]] for i in range(len(frame_based_predictions))])
+
+        # get class confidences
+        cls_conf = frame_based_predictions[:, 5].cpu().numpy()
+        class_predictions = frame_based_predictions[:, 6].cpu().numpy()
+
+        # Track Objects using Deep Sort tracker
+        # Tracker expects Input as XYWH but returns Boxes as XYXY
+        tracking_results = np.array(self.tracker.update(bbox_xywh, cls_conf, class_predictions, im))
+        num_results = len(tracking_results)
+
+        if num_results > 0:
+            detection_data = self.get_detection_data(True, frame_id = frame_id, tracking_results = tracking_results)
+        else:
+            # Since we need to advance the framecounter of the classifier, we keep track of frames with no predictions
+            new_custom_objects.append(None)
+            detection_data = []
+
+        if not vis:
+            return detection_data
+
+        # visualization
+        num_colors = 10
+        color_map = cm.get_cmap('gist_rainbow', num_colors)
+        if len(tracking_results) > 0:
+            for box in tracking_results:
+                x1v = int(box[0])
+                x2v = int(box[2])
+                y1v = int(box[1])
+                y2v = int(box[3])
+                color_idx = box[4] % self.num_colors
+                color = color_map(color_idx)[0:3]
+                color = tuple([int(color[i] * 255) for i in range(len(color))])
+                class_name = self.classes[int(box[5])]
+                label = f"{class_name} {box[4]}"
+                font_size = 0.5
+                font_thickness = 1
+                text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_size , font_thickness)[0]
+                # draw bounding box
+                im = cv2.rectangle(im, (x1v, y1v), (x2v, y2v), color, 5)
+                # draw text and background
+                cv2.rectangle(im, (x1v, y1v), (x1v + text_size[0] + 3, y1v + text_size[1] + 4), color, -1)
+                cv2.putText(im, label, (x1v, y1v + text_size[1]), cv2.FONT_HERSHEY_SIMPLEX, font_size,
+                            [0, 0, 0], font_thickness)
+            cv2.imshow("im", im)
+            cv2.waitKey()
+        return detection_data
+
 
     def runOnSingleVideo(self, shots_per_vid_np=None, max_recall_id=-1):
         """
@@ -396,8 +439,9 @@ class OD(object):
             offset = 0
 
         # Ensure tracker is empty
-        self.tracker.tracker.clear_id()
-        self.tracker.reset()
+        if self.use_tracker:
+            self.tracker.tracker.clear_id()
+            self.tracker.reset()
 
         # load video instance
         vid_name = shots_np[0][0]
@@ -466,9 +510,7 @@ class OD(object):
                 obj_id = 0
                 detection_data = []
 
-                if(self.config_instance.debug_flag == True):
-                    print("##################################################################################")
-
+            
                 if (frame_based_predictions is None):
                     results_od_l.append(["None", shot_id, vid_name, start, stop, frame_id,
                                          "None", "None", "None", "None", "None", "None", "None"])
@@ -481,83 +523,32 @@ class OD(object):
 
                     # Since we need to advance the framecounter of the classifier, we keep track of frames with no predictions
                     new_custom_objects.append(None)
+                    continue
+
+                # rescale bounding boxes to fit original video resolution
+                im, x, y, w, h = self.rescale_bb(images_orig[a], frame_based_predictions)
+
+                if self.use_tracker:
+                    detection_data =  self.apply_tracker(x, y, w, h, im, frame_id, new_custom_objects, frame_based_predictions)
                 else:
-                    # rescale bounding boxes to fit original video resolution
-                    im, x, y, w, h = self.rescale_bb(images_orig[a], frame_based_predictions)
+                    # if no tracker is used, store the detection results
+                    detection_data = self.get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
 
-                    if self.use_tracker:
-                        # Convert BBoxes from XYXY (corner points) to XYWH (center + width/height) representation
-                        x = x+w/2
-                        y = y+h/2
-                        bbox_xywh = np.array([[x[i],y[i],w[i],h[i]] for i in range(len(frame_based_predictions))])
+                # store predictions for each object in the frame
+                for obj in detection_data:   
+                    results_od_l.append([obj.oid, shot_id, vid_name, start, stop, frame_id,
+                                            obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])                     
 
-                        # get class confidences
-                        cls_conf = frame_based_predictions[:, 5].cpu().numpy()
-                        class_predictions = frame_based_predictions[:, 6].cpu().numpy()
-
-                        # Track Objects using Deep Sort tracker
-                        # Tracker expects Input as XYWH but returns Boxes as XYXY
-                        tracking_results = np.array(self.tracker.update(bbox_xywh, cls_conf, class_predictions, im))
-                        num_results = len(tracking_results)
-
-                        if num_results > 0:
-                            detection_data = self.get_detection_data(True, frame_id = frame_id, tracking_results = tracking_results)
-                        else:
-                            # Since we need to advance the framecounter of the classifier, we keep track of frames with no predictions
-                            new_custom_objects.append(None)
-
-                        # visualization
-                        '''
-                        num_colors = 10
-                        color_map = cm.get_cmap('gist_rainbow', num_colors)
-                        if len(tracking_results) > 0:
-                            for box in tracking_results:
-                                x1v = int(box[0])
-                                x2v = int(box[2])
-                                y1v = int(box[1])
-                                y2v = int(box[3])
-                                color_idx = box[4] % self.num_colors
-                                color = color_map(color_idx)[0:3]
-                                color = tuple([int(color[i] * 255) for i in range(len(color))])
-                                class_name = classes[int(box[5])]
-                                label = f"{class_name} {box[4]}"
-                                font_size = 0.5
-                                font_thickness = 1
-                                text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_size , font_thickness)[0]
-                                # draw bounding box
-                                im = cv2.rectangle(im, (x1v, y1v), (x2v, y2v), color, 5)
-                                # draw text and background
-                                cv2.rectangle(im, (x1v, y1v), (x1v + text_size[0] + 3, y1v + text_size[1] + 4), color, -1)
-                                cv2.putText(im, label, (x1v, y1v + text_size[1]), cv2.FONT_HERSHEY_SIMPLEX, font_size,
-                                            [0, 0, 0], font_thickness)
-                            cv2.imshow("im", im)
-                            cv2.waitKey()
-                        '''
+                    current_shot.addCustomObject(obj)
 
 
-                    else:
-                        # if no tracker is used, store the detection results
-                        detection_data = self.get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
-
-                    # store predictions for each object in the frame
-                    for obj in detection_data:   
-                        results_od_l.append([obj.oid, shot_id, vid_name, start, stop, frame_id,
-                                             obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])                     
-
-                        current_shot.addCustomObject(obj)
-
-
-                        if (self.config_instance.debug_flag == True):
-                            tmp = str(obj_id) + ";" + str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + \
-                                  str(stop) + ";" + str(frame_id) + ";" + str(obj.bb_x1) + ";" + str(obj.bb_y1) + ";" + \
-                                  str(obj.bb_x2) + ";" + str(obj.bb_y2) + ";" + str(obj.bb_obj_conf) + ";" + str(obj.bb_class_conf) + ";" + \
-                                  str(obj.bb_class_idx)
-                            print(tmp)
-                    new_custom_objects += detection_data
+                    if (self.config_instance.debug_flag == True):
+                        print(obj.printObjectInfo())
+                new_custom_objects += detection_data
         
             if self.config_instance.use_classifier:
                 Classifier.run_classifier_on_list_of_custom_objects(self.classifier, new_custom_objects, shot_frames["Images"])
-                
+
             current_shot.update_obj_classifications(self.config_instance.use_classifier_majority_voting, self.config_instance.others_factor)
 
             # Normalize coordinates
@@ -644,8 +635,6 @@ class OD(object):
                                                  conf_thres=self.config_instance.confidence_threshold,
                                                  nms_thres=self.config_instance.nms_threshold)
 
-                #predictions_l.extend(batch_detections)
-                #continue
                 for frame_detection in batch_detections:
 
                     filtered_detection = None
@@ -656,18 +645,12 @@ class OD(object):
 
                             detected_object = frame_detection[i]
                             class_idx = detected_object[6].int().item()
-                            #print(f"{classes[class_idx]} in {class_filter}?")
 
                             if classes[class_idx] in class_filter:
-                                #print(f"Detected {classes[class_idx]}")
-
                                 if filtered_detection is None:
                                     filtered_detection = detected_object.unsqueeze(dim=0)
                                 else:
                                     filtered_detection = torch.cat([filtered_detection, detected_object.unsqueeze(dim=0)], dim=0)
-
-                        #print(frame_detection)
-                        #print(filtered_detection)
 
                     predictions_l.append(filtered_detection)
 
