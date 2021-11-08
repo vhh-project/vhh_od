@@ -96,6 +96,8 @@ class Configuration:
         # od_core_config section
         self.batch_size = int(od_core_config['BATCH_SIZE'])
 
+        self.path_sbd_results = od_core_config['PATH_SBD_RESULTS']
+
         self.save_raw_results = int(od_core_config['SAVE_RAW_RESULTS'])
         self.path_postfix_raw_results = od_core_config['POSTFIX_RAW_RESULTS']
         self.path_prefix_raw_results = od_core_config['PREFIX_RAW_RESULTS']

@@ -21,6 +21,10 @@ OdCore:
   BATCH_SIZE: 8
 
   ###
+  # This parameter is used to specify the path for saving the raw results.
+  PATH_SBD_RESULTS: "/data/share/fjogl/vhh_od_dev_results/spd_results/"
+
+  ###
   # This parameter is used to save raw results (e.g. debug visualizations).
   SAVE_RAW_RESULTS: 0       # 1 ... yes 0 ... no
   ###

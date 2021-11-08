@@ -14,7 +14,7 @@ max_recall_id = 99
 od_instance.runOnSingleVideo(shots_per_vid_np=shots_np, max_recall_id=max_recall_id)
 '''
 
-config_file = "./config/config_vhh_od_debug.yaml"
+config_file = "./config/config_vhh_od.yaml"
 stc_instance = OD(config_file)
 
 if(stc_instance.config_instance.debug_flag == True):
@@ -25,7 +25,7 @@ if(stc_instance.config_instance.debug_flag == True):
     max_recall_id = int(shots_np[0][0].split('.')[0])
     stc_instance.runOnSingleVideo(shots_per_vid_np=shots_np, max_recall_id=max_recall_id)
 else:
-    results_path = "/data/share/datasets/vhh_mmsi_test_db_v3/annotations/sbd/"
+    results_path = stc_instance.config_instance.path_sbd_results
     results_file_list = os.listdir(results_path)
     print(results_file_list)
 
