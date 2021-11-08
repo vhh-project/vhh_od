@@ -125,6 +125,8 @@ class Configuration:
         self.classifier_model_path = od_core_config['PATH_TO_CLASSIFIER_MODEL']
         self.classifier_model_architecture = od_core_config['CLASSIFIER_MODEL_ARCHITECTURE']
 
+        self.do_normalize_coordinates = od_core_config['DO_NORMALIZE_COORDINATES'] == "1"
+
 
         #DeepSort Parameters
         if od_core_config["USE_DEEPSORT"] == "1":

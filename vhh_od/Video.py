@@ -193,7 +193,7 @@ class Video(object):
 
             while shot_is_not_over:
                 # print(f"Retrieving Frames for Shot {sid} (frames {frame_number} to {stop_idx})...")
-                while frame_number <= stop_idx and len(frame_l) < max_frames_per_return:
+                while frame_number < stop_idx and len(frame_l) < max_frames_per_return:
                     
                     # read next frame
                     success, image = cap.read()
@@ -227,7 +227,7 @@ class Video(object):
                     yield {"Tensors": None, "Images": np.array(frames_orig), "ShotInfo": shot}
 
                 # End the shot if the current frame is the last frame (or an even later frame)
-                if not frame_number <= stop_idx:
+                if not frame_number < stop_idx:
                     shot_is_not_over = False
                 # If the shot is not over, prepare to return more frames in this shot   
                 else:

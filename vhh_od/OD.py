@@ -436,7 +436,7 @@ class OD(object):
             new_custom_objects = []
 
             if shot_id != previous_shot_id:
-                frame_id = start
+                frame_id = start - 1
 
             # Only run the model if we actually have tensors
             if shot_tensors is None:
@@ -499,7 +499,6 @@ class OD(object):
                         # Tracker expects Input as XYWH but returns Boxes as XYXY
                         tracking_results = np.array(self.tracker.update(bbox_xywh, cls_conf, class_predictions, im))
                         num_results = len(tracking_results)
-                        #print(f"Outputs:\n{tracking_results}")
 
                         if num_results > 0:
                             detection_data = self.get_detection_data(True, frame_id = frame_id, tracking_results = tracking_results)
@@ -559,6 +558,16 @@ class OD(object):
             if self.config_instance.use_classifier:
                 Classifier.run_classifier_on_list_of_custom_objects(self.classifier, new_custom_objects, shot_frames["Images"])
                 current_shot.update_obj_classifications(self.config_instance.use_classifier_majority_voting)
+
+            # Normalize coordinates
+            if self.config_instance.do_normalize_coordinates:
+                height, width, _ = images_orig[0].shape
+                for obj in current_shot.object_list:
+                    obj.bb_x1 /= width
+                    obj.bb_x2 /= width
+                    obj.bb_y1 /= height
+                    obj.bb_y2 /= height
+
             previous_shot_id = shot_id
         
         if (self.config_instance.debug_flag == True):
