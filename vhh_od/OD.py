@@ -557,7 +557,8 @@ class OD(object):
         
             if self.config_instance.use_classifier:
                 Classifier.run_classifier_on_list_of_custom_objects(self.classifier, new_custom_objects, shot_frames["Images"])
-                current_shot.update_obj_classifications(self.config_instance.use_classifier_majority_voting)
+                
+            current_shot.update_obj_classifications(self.config_instance.use_classifier_majority_voting, self.config_instance.others_factor)
 
             # Normalize coordinates
             if self.config_instance.do_normalize_coordinates:

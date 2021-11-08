@@ -282,5 +282,5 @@ def run_classifier_on_list_of_custom_objects(classifier, custom_obj_list, releva
             class_names, _ = classifier.inference_from_img(batch)
             
             for class_name in class_names:
-                custom_obj_list[indices[idx]].add_classification(class_name)
+                custom_obj_list[indices[idx]].add_person_classification(class_name)
                 idx += 1

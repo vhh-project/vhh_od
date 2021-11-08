@@ -39,18 +39,25 @@ class CustObject(object):
                   + ";" + str(self.class_score) + ";" + str(self.object_class_name) + ";" + str(self.object_class_idx)
         return tmp_str
 
-    def add_classification(self, classification):
+    def add_person_classification(self, classification):
+        """
+        Give the object an additional classification, for example "Soldier" for someone beloning to the "Person" class
+        """
         if self.object_class_name != "person":
             print("Warning: trying to set classification for a crop that is not a person")
             return
         self.person_classification = classification
 
-    def update_according_to_person_classification(self, classification):
-        if self.object_class_name != "person":
-            return
-        self.add_classification(classification)
-        if classification != "others":
-            self.object_class_name = "person ({0})".format(classification)
+    def update_with_person_classification(self):
+        if self.object_class_name == "person":
+            # We do not want "Person (others)" as a result
+            if self.person_classification != "others":
+                self.update_classification("person ({0})".format(self.person_classification))
+            else:
+                self.person_classification = None
+
+    def update_classification(self, classification):
+        self.object_class_name = classification
 
     def printObjectInfo(self):
         """

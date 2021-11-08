@@ -128,7 +128,8 @@ class Configuration:
 
         self.do_normalize_coordinates = od_core_config['DO_NORMALIZE_COORDINATES'] == "1"
 
-
+        self.others_factor = od_core_config['OTHERS_FACTOR']
+        
         #DeepSort Parameters
         if od_core_config["USE_DEEPSORT"] == "1":
             self.use_deepsort = True
