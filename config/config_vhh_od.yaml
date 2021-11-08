@@ -67,10 +67,6 @@ OdCore:
   MODEL_CONF_THRES: 0.1
 
   ###
-  # yolov3 detector - IOU confidence threshold (NOT USED)
-  MODEL_IOU_THRESH: 0.4
-
-  ###
   # yolov3 detector - NMS confidence threshold
   MODEL_NMS_THRESH: 0.3
 
