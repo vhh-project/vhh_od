@@ -65,56 +65,16 @@ class OD(object):
         self.num_colors = 10
         self.color_map = cm.get_cmap('gist_rainbow', self.num_colors)
 
-
-    def runOnAllFramesInFolder(self, folder_path, do_store_crops = True, do_evaluate_model = False, **kwargs):
+    def iterate_over_images(self, image_files_full_path):
         """
-        Runs object detection on each picture, and stores crops of the boundary boxes as separate images
-
-        :param folder_path: Path to a folder with pictures, folder should ONLY contain images
-        :param do_store_crops: If set to true then the crops will be stored in the given output_folder
-        :param do_evaluate_model: If set to true will open windows to evaluate the model
-        :param kwargs:
-            For do_store_crops:
-                output_folder_path: The path in which to store the crops 
-            For do_evaluate_model:
-                n_imgs: The number of images from the folder to use 
-                n_annotations: The number images to manually annotate 
+        Iterates over a given list of images applying the object
+        detection to each frame. In each iteration it returns one crop.
         """
-
         self.advanced_init()
+        for a, image_file in enumerate(image_files_full_path):
+            print("Processed {0} / {1} images".format(a, len(image_files_full_path)), end ="\r")
 
-        nr_crops = 0
-        nr_correct_crops = 0
-        image_files = os.listdir(folder_path)
-
-        if do_evaluate_model:
-            np.random.seed(0)
-
-            # Only use n_imgs images
-            image_files_chosen = []
-            n_imgs = kwargs["n_imgs"]
-            while len(image_files) > 0 and n_imgs > 0:
-                n_imgs -= 1
-                i = np.random.randint(0, len(image_files))
-                image_files_chosen.append(image_files[i])
-                del image_files[i]
-            image_files = image_files_chosen
-            np.random.shuffle(image_files)
-
-            # Extract n_annotations images which whose crops we will use to evaluate the model accuracy
-            n_annotations = kwargs["n_annotations"]
-            #idx_for_evaluation = np.random.choice(range(len(image_files)), size=n_annotations, replace=False)
-
-            print("Press 1 if the crop and class is correct, 0 if it is wrong. Do not use the numpad. Use escape to quit.")
-            crops_evaluated = 0
-
-        # Text for the information file
-        information = ""
-
-        for a, image_file in enumerate(image_files):
-            print("Processed {0} / {1} images".format(a, len(image_files)), end ="\r")
-
-            img = cv2.imread(os.path.join(folder_path, image_file))
+            img = cv2.imread(image_file)
             img_orig = img
 
             tensors = torch.unsqueeze(self.preprocess(img), dim = 0)
@@ -133,82 +93,25 @@ class OD(object):
             im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
 
             if len(frame_based_predictions) > 0:
-                idx_to_evaluate = np.random.randint(0, len(detection_data))
-
                 for i, data in enumerate(detection_data):
-                    nr_crops += 1
-
                     crop_img = im[data.bb_y1:data.bb_y2, data.bb_x1:data.bb_x2]
 
                     # Sometimes OD predicts boundary boxes with coordinates < 0, cannot crop those so ignore them
                     if(data.bb_y1 < 0) or (data.bb_y2 < 0) or (data.bb_x1 < 0) or (data.bb_x2 < 0):
                         continue
 
-                    # Store crops
-                    if do_store_crops:
-                        folder_crop_img_path = os.path.join(kwargs["output_folder_path"], data.object_class_name)
-                        if not os.path.isdir(folder_crop_img_path):
-                            os.mkdir(folder_crop_img_path)
-
-                        name_crop_img = data.object_class_name + "_" + str(a) + "_" + str(data.oid) + ".png"
-                        fullpath_crop_img = os.path.join(folder_crop_img_path, name_crop_img)
-                        cv2.imwrite(fullpath_crop_img,crop_img)
-
-                        information += ','.join([image_file, name_crop_img, data.object_class_name, str(data.bb_x1), str(data.bb_x2), str(data.bb_y1), str(data.bb_y2)])
-                        information += '\n'
-
-                    # Check if crop is correct
-                    if do_evaluate_model and i == idx_to_evaluate:
-                        if crops_evaluated >= kwargs["n_annotations"]:
-                            continue
-
-                        # Ties are very small and a crop of a tie is hard to indentify as a tie, hence we do not evalute ties
-                        if data.object_class_name == "tie":
-                            continue
-
-                        need_to_evaluate = True
-                        crops_evaluated += 1
-
-                        # In case someone touches a wrong key, keep asking for annotations
-                        while(need_to_evaluate):
-                            print("\nClass: ", data.object_class_name)
-                            sys.stdout.flush()
-                            cv2.imshow(data.object_class_name, crop_img)
-                            k = cv2.waitKey(0)
-
-                            # There is a bug that waitKey() sometimes gets "ghost" keypresses, if such a keypress occurs call waitKey() again
-                            while k == 0:
-                                k = cv2.waitKey(0)
-
-                            cv2.destroyAllWindows()
-
-                            if k==27:       # Esc key to stop
-                                need_to_evaluate = False
-                                break
-                            elif k==49:     # Keyvalue for 1
-                                print("Correct crop.\n")
-                                nr_correct_crops += 1
-                                need_to_evaluate = False
-                            elif k==48:     # Keyvalue for 0
-                                print("Wrong crop.\n")
-                                need_to_evaluate = False
-                            else:
-                                print("Neither 0 or 1 detected, please make sure to not use the numpad.")
-                        print("Annotated {0} / {1}".format(crops_evaluated, kwargs["n_annotations"]))               
-                   
-        if do_store_crops:
-             # File to store crop information in
-            information_file = open(os.path.join(kwargs["output_folder_path"], "crop_information.txt"), "w")
-            information_file.write("original_image, crop_image, class_name, x1, x2, y1, y2\n")
-            information_file.write(information)
-
-            information_file.close()
-            
-        # Output data
-        print("Processed {0} / {0} images\nExtracted {1} crops".format(len(image_files), nr_crops))
-
-        if do_evaluate_model:
-            return nr_crops, nr_correct_crops, crops_evaluated
+                    name_crop_img = data.object_class_name + "_" + str(a) + "_" + str(data.oid) + ".png"
+                    
+                    yield {
+                        "cropped_img": crop_img,
+                        "class": data.object_class_name,
+                        "name": name_crop_img,
+                        "image_file": image_file,
+                        "x1": str(data.bb_x1),
+                        "x2": str(data.bb_x2),
+                        "y1": str(data.bb_y1),
+                        "y2": str(data.bb_y2),
+                    } 
 
     def advanced_init(self):
         """"
