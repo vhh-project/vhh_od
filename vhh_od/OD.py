@@ -5,6 +5,7 @@ from vhh_od.utils import *
 from vhh_od.Shot import Shot
 from vhh_od.CustObject import CustObject
 from vhh_od.visualize import visualize_video
+import vhh_od.helpers as Helpers
 import vhh_od.Classifier as Classifier
 from deep_sort.deep_sort import DeepSort
 
@@ -303,18 +304,11 @@ class OD(object):
             cv2.waitKey()
         return detection_data
 
-
-    def runOnSingleVideo(self, shots_per_vid_np=None, max_recall_id=-1):
+    def get_video_instance(self, shots_per_vid_np, max_recall_id):
         """
-        Method to run stc classification on specified video.
-
-        :param shots_per_vid_np: [required] numpy array representing all detected shots in a video
-                                 (e.g. sid | movie_name | start | end )
-        :param max_recall_id: [required] integer value holding unique video id from VHH MMSI system
+        Generate the video instance on which object detection will be run
+        Also handles initialization and checking of parameters for runOnSingleVideo(...)
         """
-
-        print("run vhh_od detector on single video ... ")
-
         if (type(shots_per_vid_np) == None):
             print("ERROR: you have to set the parameter shots_per_vid_np!")
             exit()
@@ -363,21 +357,84 @@ class OD(object):
             vid_instance.addShotObject(shot_obj=shot_instance)
 
         self.advanced_init()
+        return vid_instance
+
+    def process_predictions(self, predictions_l, images_orig, frame_id, results_od_l, new_custom_objects, current_shot):
+        shot_id = int(current_shot.sid)
+        vid_name = str(current_shot.movie_name)
+        start = int(current_shot.start_pos)
+        stop = int(current_shot.end_pos)
+
+        # For each frame, track predictions and store results
+        for a in range(0, len(predictions_l)):
+            frame_id += 1
+            frame_based_predictions = predictions_l[a]
+            detection_data = []
+
+        
+            if (frame_based_predictions is None):
+                results_od_l.append(["None", shot_id, vid_name, start, stop, frame_id,
+                                        "None", "None", "None", "None", "None", "None", "None"])
+
+                if (self.config_instance.debug_flag == True):
+                    tmp = str(None) + ";" + str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + str(
+                        stop) + ";" + str(frame_id) + ";" + str(None) + ";" + str(None) + ";" + str(
+                        None) + ";" + str(None) + ";" + str(None) + ";" + str(None) + ";" + str(None)
+                    print(tmp)
+
+                # Since we need to advance the framecounter of the classifier, we keep track of frames with no predictions
+                new_custom_objects.append(None)
+                continue
+
+            # rescale bounding boxes to fit original video resolution
+            im, x, y, w, h = self.rescale_bb(images_orig[a], frame_based_predictions)
+
+            if self.use_tracker:
+                detection_data =  self.apply_tracker(x, y, w, h, im, frame_id, new_custom_objects, frame_based_predictions)
+            else:
+                # if no tracker is used, store the detection results
+                detection_data = self.get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
+
+            # store predictions for each object in the frame
+            for obj in detection_data:   
+                results_od_l.append([obj.oid, shot_id, vid_name, start, stop, frame_id,
+                                        obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])                     
+
+                current_shot.addCustomObject(obj)
+
+
+                if (self.config_instance.debug_flag == True):
+                    print(obj.printObjectInfo())
+            new_custom_objects += detection_data
+        return frame_id
+
+    def normalize_bb(self, bb_list, width, height):
+        for obj in bb_list:
+            obj.bb_x1 /= width
+            obj.bb_x2 /= width
+            obj.bb_y1 /= height
+            obj.bb_y2 /= height
+
+    def runOnSingleVideo(self, shots_per_vid_np=None, max_recall_id=-1):
+        """
+        Method to run stc classification on specified video.
+
+        :param shots_per_vid_np: [required] numpy array representing all detected shots in a video
+                                 (e.g. sid | movie_name | start | end )
+        :param max_recall_id: [required] integer value holding unique video id from VHH MMSI system
+        """
+        print("run vhh_od detector on single video ... ")
+        vid_instance = self.get_video_instance(shots_per_vid_np, max_recall_id)
 
         printCustom(f"Starting Object Detection (Executing on device {self.device})... ", STDOUT_TYPE.INFO)
         results_od_l = []
-        previous_shot_id = -1
-        frame_id = -1
+        previous_shot_id, frame_id = -1, -1
         
         for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=self.preprocess, max_frames_per_return=self.config_instance.max_frames):
-            shot_tensors = shot_frames["Tensors"]
-            images_orig = shot_frames["Images"]
-            current_shot = shot_frames["ShotInfo"]
+            shot_tensors, images_orig, current_shot = shot_frames["Tensors"], shot_frames["Images"], shot_frames["ShotInfo"]
 
-            shot_id = int(current_shot.sid)
-            vid_name = str(current_shot.movie_name)
-            start = int(current_shot.start_pos)
-            stop = int(current_shot.end_pos)
+            shot_id, vid_name = int(current_shot.sid), str(current_shot.movie_name)
+            start, stop = int(current_shot.start_pos), int(current_shot.end_pos)
 
             # Collect all custom objects so we can run the classifier on them
             new_custom_objects = []
@@ -399,109 +456,54 @@ class OD(object):
                 print(f"Start: {start} / Stop: {stop}")
                 print(f"Duration: {stop - start} Frames")
 
-            # run vhh_od detector
+            # Run vhh_od detector get predictions
             predictions_l = self.runModel(model=self.model, tensor_l=shot_tensors, classes=self.classes, class_filter=self.class_selection)
 
-            # reset tracker for every new shot
+            # Reset tracker for every new shot
             if self.use_tracker and previous_shot_id != shot_id:
                 self.tracker.reset()
 
-            # for each frame, track predictions and store results
-            for a in range(0, len(predictions_l)):
-                frame_id += 1
-                frame_based_predictions = predictions_l[a]
-                obj_id = 0
-                detection_data = []
+            # Process Yolo's predictions and update: results_od_l, new_custom_objects, current_shot
+            # This also runs the tracker
+            frame_id = self.process_predictions(predictions_l, images_orig, frame_id, results_od_l, new_custom_objects, current_shot)
 
-            
-                if (frame_based_predictions is None):
-                    results_od_l.append(["None", shot_id, vid_name, start, stop, frame_id,
-                                         "None", "None", "None", "None", "None", "None", "None"])
-
-                    if (self.config_instance.debug_flag == True):
-                        tmp = str(None) + ";" + str(shot_id) + ";" + str(vid_name) + ";" + str(start) + ";" + str(
-                            stop) + ";" + str(frame_id) + ";" + str(None) + ";" + str(None) + ";" + str(
-                            None) + ";" + str(None) + ";" + str(None) + ";" + str(None) + ";" + str(None)
-                        print(tmp)
-
-                    # Since we need to advance the framecounter of the classifier, we keep track of frames with no predictions
-                    new_custom_objects.append(None)
-                    continue
-
-                # rescale bounding boxes to fit original video resolution
-                im, x, y, w, h = self.rescale_bb(images_orig[a], frame_based_predictions)
-
-                if self.use_tracker:
-                    detection_data =  self.apply_tracker(x, y, w, h, im, frame_id, new_custom_objects, frame_based_predictions)
-                else:
-                    # if no tracker is used, store the detection results
-                    detection_data = self.get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
-
-                # store predictions for each object in the frame
-                for obj in detection_data:   
-                    results_od_l.append([obj.oid, shot_id, vid_name, start, stop, frame_id,
-                                            obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])                     
-
-                    current_shot.addCustomObject(obj)
-
-
-                    if (self.config_instance.debug_flag == True):
-                        print(obj.printObjectInfo())
-                new_custom_objects += detection_data
-        
+            # Use classifier on crops
             if self.config_instance.use_classifier:
                 Classifier.run_classifier_on_list_of_custom_objects(self.classifier, new_custom_objects, shot_frames["Images"])
 
+            # Add classifier results, do majority voting
             current_shot.update_obj_classifications(self.config_instance.use_classifier_majority_voting, self.config_instance.others_factor)
 
             # Normalize coordinates
             if self.config_instance.do_normalize_coordinates:
                 height, width, _ = images_orig[0].shape
-                for obj in current_shot.object_list:
-                    obj.bb_x1 /= width
-                    obj.bb_x2 /= width
-                    obj.bb_y1 /= height
-                    obj.bb_y2 /= height
+                self.normalize_bb(width, height)
 
             previous_shot_id = shot_id
         
-        if (self.config_instance.debug_flag == True):
+        if (self.config_instance.debug_flag):
             vid_instance.printVIDInfo()
 
-        final_csv_path = None
-
-        if (self.config_instance.save_final_results == True):
-
-            results_path = self.config_instance.path_final_results
-
-            if not os.path.isdir(results_path):
-                os.makedirs(results_path)
-                printCustom(f"Created results folder \"{results_path}\"", STDOUT_TYPE.INFO)
-
+        # Store results
+        if (self.config_instance.save_final_results):
+            results_path = Helpers.mkdir_if_necessary(self.config_instance.path_final_results)
             filepath = f"{results_path}{vid_name.split('.')[0]}.{self.config_instance.path_postfix_final_results}"
-            final_csv_path = filepath
             vid_instance.export2csv(filepath=filepath)
 
-        if (self.config_instance.save_raw_results == True and final_csv_path is not None):
+            if (self.config_instance.save_raw_results):
+                results_path = Helpers.mkdir_if_necessary(self.config_instance.path_raw_results)
+                visualize_video(vid_instance, filepath, results_path)
 
-            results_path = self.config_instance.path_raw_results
-
-            if not os.path.isdir(results_path):
-                os.makedirs(results_path)
-                printCustom(f"Created results folder \"{results_path}\"", STDOUT_TYPE.INFO)
-
-            visualize_video(vid_instance, final_csv_path, results_path)
-
-            '''
-            for shot in vid_instance.shot_list:
-                vid_instance.visualizeShotsWithBB(path=results_path,
-                                                  sid=int(shot.sid),
-                                                  all_frames_tensors=all_tensors_l,
-                                                  save_single_plots_flag=True,
-                                                  plot_flag=False,
-                                                  boundingbox_flag=True,
-                                                  save_as_video_flag=True
-                                                  ) '''
+                '''
+                for shot in vid_instance.shot_list:
+                    vid_instance.visualizeShotsWithBB(path=results_path,
+                                                    sid=int(shot.sid),
+                                                    all_frames_tensors=all_tensors_l,
+                                                    save_single_plots_flag=True,
+                                                    plot_flag=False,
+                                                    boundingbox_flag=True,
+                                                    save_as_video_flag=True
+                                                    ) '''
 
     def runModel(self, model, tensor_l, classes, class_filter):
         """
