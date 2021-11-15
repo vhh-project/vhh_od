@@ -33,8 +33,11 @@ def main():
     "The folder in which to store crops,  for example: '-p /data/share/USERNAME/crops/'. Must be a valid directory.", required=True)
     args = parser.parse_args()
 
-    if not os.path.isdir(args.path) or not os.path.isdir(args.outpath):
-        raise ValueError("path must point to a valid directory. Call this script with the '-h' parameter to get information on how to run it")
+    if not os.path.isdir(args.path):
+        raise ValueError("path (-p) must point to a valid directory. Call this script with the '-h' parameter to get information on how to run it")
+
+    if not os.path.isdir(args.outpath):
+        raise ValueError("output path ('-o) must point to a valid directory. Call this script with the '-h' parameter to get information on how to run it")
 
     stc_instance.runOnAllFramesInFolder(args.path, True, False, output_folder_path = args.outpath)
     
