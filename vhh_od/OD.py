@@ -17,7 +17,9 @@ import torch
 from torch.autograd import Variable
 from torch.utils import data
 from torchvision import transforms
+from collections import namedtuple
 
+Detection_Data = namedtuple('Detection_Data', 'x1 x2 y1 y2 ids obj_class obj_conf class_conf num_results')
 
 class OD(object):
     """
@@ -88,7 +90,7 @@ class OD(object):
                 continue
 
             im, x, y, w, h = self.rescale_bb(img_orig, frame_based_predictions)
-            detection_data = self.get_detection_data(False, frame_id = a, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
+            detection_data = self.detection_data_without_tracking_to_custom_obj(0, x, y, w, h, frame_based_predictions)
 
             # Switch color channels 
             im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
@@ -160,69 +162,72 @@ class OD(object):
         if self.config_instance.use_classifier:
             self.classifier = Classifier.Classifier(self.config_instance.classifier_model_architecture, self.config_instance.classifier_model_path, self.device)
 
-    def get_detection_data(self, use_tracker, frame_id, **kwargs):
+
+    def detection_data_with_tracking_to_custom_obj(self, frame_id, tracking_results):
         """
         Takes prediction data and outputs the detection data as a list of "CustObject"s
-        Depending on if you use a tracker you need to input different things.
-        If you use a tracker:
-            - Need to give a variable tracking_results, for example: get_detection_data(True, frame_id = frame_id, tracking_results = tracking_results)
-        If you do not use a tracker:
-            - Need to give variables named x, y, w, h that represent the bounding boxes (you get those from calling rescale_bb(...)) and frame_based_predictions
-                for example: get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
+        Use this if you are using a tracker
         """
+        x1_list = tracking_results[:,0]
+        x2_list = tracking_results[:,2]
+        y1_list = tracking_results[:,1]
+        y2_list = tracking_results[:,3]
+        ids = tracking_results[:,4]
+        object_classes = tracking_results[:,5]
+        object_confs = None
+        class_confs = None
+        num_results = len(tracking_results)
 
-        obj_id = 0 
-        if use_tracker:
-            tracking_results = kwargs["tracking_results"]
-            x1_list = tracking_results[:,0]
-            x2_list = tracking_results[:,2]
-            y1_list = tracking_results[:,1]
-            y2_list = tracking_results[:,3]
-            ids = tracking_results[:,4]
-            object_classes = tracking_results[:,5]
-            object_confs = None
-            class_confs = None
-            num_results = len(tracking_results)
-        else:
-            frame_based_predictions = kwargs["frame_based_predictions"]
-            x = kwargs["x"]
-            y = kwargs["y"]
-            w = kwargs["w"]
-            h = kwargs["h"]
-            x1_list = x
-            x2_list = x + w
-            y1_list = y
-            y2_list = y + h
-            ids = None
-            object_confs = frame_based_predictions[:,4].cpu().numpy()
-            class_confs = frame_based_predictions[:,5].cpu().numpy()
-            object_classes = frame_based_predictions[:, 6].cpu().numpy()
-            num_results = len(frame_based_predictions)
+        data = Detection_Data(x1_list, x2_list, y1_list, y2_list, ids, object_classes, object_confs, class_confs, num_results)
+        return self.detection_data_to_custom_obj(data, frame_id)
 
+    def detection_data_without_tracking_to_custom_obj(self, frame_id, x, y, w, h, frame_based_predictions):
+        """
+        Takes prediction data and outputs the detection data as a list of "CustObject"s
+        Use this if you are NOT using a tracker
+        """
+        x1_list = x
+        x2_list = x + w
+        y1_list = y
+        y2_list = y + h
+        ids = None
+        object_confs = frame_based_predictions[:,4].cpu().numpy()
+        class_confs = frame_based_predictions[:,5].cpu().numpy()
+        object_classes = frame_based_predictions[:, 6].cpu().numpy()
+        num_results = len(frame_based_predictions)
+        data = Detection_Data(x1_list, x2_list, y1_list, y2_list, ids, object_classes, object_confs, class_confs, num_results)
+        return self.detection_data_to_custom_obj(data, frame_id)
+
+
+    def detection_data_to_custom_obj(self, data, frame_id):
+        """
+        Takes a the detection data in the format of a "Detection_Data" named tuple, outputs a list of "CustObject"s
+        """
+        obj_id = 0
         cust_object_list = []
-        for object_idx in range(num_results):
-            x1 = int(x1_list[object_idx])
-            x2 = int(x2_list[object_idx])
-            y1 = int(y1_list[object_idx])
-            y2 = int(y2_list[object_idx])
+        for object_idx in range(data.num_results):
+            x1 = int(data.x1[object_idx])
+            x2 = int(data.x2[object_idx])
+            y1 = int(data.y1[object_idx])
+            y2 = int(data.y2[object_idx])
 
-            if ids is None:
+            if data.ids is None:
                 instance_id = obj_id
                 obj_id = obj_id + 1
             else:
-                instance_id = ids[object_idx]
+                instance_id = data.ids[object_idx]
 
-            if object_confs is None:
+            if data.obj_conf is None:
                 obj_conf = "N/A"
             else:
-                obj_conf = object_confs[object_idx]
+                obj_conf = data.obj_conf[object_idx]
 
-            if class_confs is None:
+            if data.class_conf is None:
                 class_conf = "N/A"
             else:
-                class_conf = class_confs[object_idx]
+                class_conf = data.class_conf[object_idx]
 
-            class_idx = int(object_classes[object_idx])
+            class_idx = int(data.obj_class[object_idx])
             class_name = self.classes[class_idx]
 
             obj_instance = CustObject(oid=instance_id,
@@ -268,7 +273,7 @@ class OD(object):
         num_results = len(tracking_results)
 
         if num_results > 0:
-            detection_data = self.get_detection_data(True, frame_id = frame_id, tracking_results = tracking_results)
+            detection_data = self.detection_data_with_tracking_to_custom_obj(frame_id, tracking_results)
         else:
             # Since we need to advance the framecounter of the classifier, we keep track of frames with no predictions
             new_custom_objects.append(None)
@@ -393,7 +398,7 @@ class OD(object):
                 detection_data =  self.apply_tracker(x, y, w, h, im, frame_id, new_custom_objects, frame_based_predictions)
             else:
                 # if no tracker is used, store the detection results
-                detection_data = self.get_detection_data(False, frame_id = frame_id, x = x, y = y, w = w, h = h, frame_based_predictions = frame_based_predictions)
+                detection_data = self.detection_data_without_tracking_to_custom_obj(frame_id, x, y, w, h, frame_based_predictions)
 
             # store predictions for each object in the frame
             for obj in detection_data:   
