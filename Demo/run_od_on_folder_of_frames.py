@@ -16,7 +16,7 @@ config_file = "./config/config_vhh_od.yaml"
 
 # If set to true then the script will ask if some of the crops were annotated correctly
 # This allows one to estimate how good the model performs
-do_evaluate_model = True
+do_evaluate_model = False
 
 # Maximum number of images on which the object detection will be run
 # Set to <= 0 if you want to run it on all objects
