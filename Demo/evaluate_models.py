@@ -1,6 +1,7 @@
 import argparse, os
 from vhh_od.Configuration import Configuration
-from vhh_od.OD import OD
+import vhh_od.frame_processing as Detector
+
 
 config_file = "./config/config_vhh_od.yaml"
 
@@ -29,16 +30,10 @@ args = parser.parse_args()
 if not os.path.isdir(args.path):
         raise ValueError("path must point to a valid directory. Call this script with the '-h' parameter to get information on how to run it")
 
-###
-# Main 
-###
-
 config_instance = Configuration(config_file)
 config_instance.loadConfig()
 
-stc_instance = OD(config_file)
-
-nr_crops, nr_correct_crops, nr_evaluated_crops = stc_instance.runOnAllFramesInFolder(args.path, False, True, n_imgs=args.n_imgs, n_annotations=args.n_annotations)
+nr_crops, nr_correct_crops, nr_evaluated_crops = Detector.run_on_folder_evaluate_model(args.path, args.n_imgs, args.n_annotations)
 print("\n\n\n----------------------Model Details----------------------")
 print("Weights: ", config_instance.path_pre_trained_model)
 print("Confidence threshold: ", config_instance.confidence_threshold)
@@ -47,4 +42,4 @@ print("\n----------------------Model Evaluation----------------------")
 print("Number of corrected crops {0} / {1}".format(nr_correct_crops, nr_evaluated_crops))
 print("Estimated correctness {0}%".format(round(float(nr_correct_crops)/nr_evaluated_crops, 2)*100))
 print("Number of bounding boxes: {0}".format(nr_crops))
-print("Number of used images: {0}".format(args.n_imgs))
+print("Number of used images: {0}".format(len(os.listdir(args.path))))
