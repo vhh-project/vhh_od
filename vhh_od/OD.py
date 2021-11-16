@@ -482,7 +482,7 @@ class OD(object):
             # Normalize coordinates
             if self.config_instance.do_normalize_coordinates:
                 height, width, _ = images_orig[0].shape
-                self.normalize_bb(width, height)
+                self.normalize_bb(current_shot.object_list, width, height)
 
             previous_shot_id = shot_id
         
