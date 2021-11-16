@@ -357,7 +357,7 @@ class OD(object):
             shot_instance = Shot(sid=int(s + 1),
                                  movie_name=shots_per_vid_np[s][0],
                                  start_pos=int(shots_per_vid_np[s][2]),
-                                 end_pos=int(shots_per_vid_np[s][3]) + 1 )
+                                 end_pos=int(shots_per_vid_np[s][3]))
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
@@ -482,7 +482,7 @@ class OD(object):
             # Normalize coordinates
             if self.config_instance.do_normalize_coordinates:
                 height, width, _ = images_orig[0].shape
-                self.normalize_bb(width, height)
+                self.normalize_bb(current_shot.object_list, width, height)
 
             previous_shot_id = shot_id
         
