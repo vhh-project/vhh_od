@@ -75,15 +75,15 @@ Install a Version of PyTorch depending on your setup. Consult the [PyTorch websi
 
 ### 4 Run demo script (optional)
 
-    * Make sure to have a video (e.g vid.m4v) stored under /videos and a corresponding shot boundary detection result in /results/sbd/final_results (e.g. vid.csv)
+    * Make sure to have a video (e.g vid.m4v) in the videos folder (see "PATH_VIDEOS" in the config file) and a corresponding shot type detection result (e.g. vid.csv) in the stc results folder (see "STC_RESULTS_PATH" in the config file). 
     * make sure that the vhh_od directory is in your Python-Path
-    * Settings can be adjusted via config/config_vhh_od_debug.yaml
+    * Settings can be adjusted via config/config_vhh_od.yaml
     * ```cd Demo```
     * ```python run_od_on_single_video.py```
 
 ### 5 Visualization (optional)
 
-    * Make sure to have a video (e.g vid.m4v) stored under /videos and a corresponding object detection result in /results/od/final_results (e.g. vid.csv)
+    * Make sure to have a video (e.g vid.m4v) stored in the videos folder (see "PATH_VIDEOS" in the config file) and a corresponding object detection result in the results folder (see "PATH_FINAL_RESULTS" in the config file).
     * Make sure that the vhh_od directory is in your Python-Path
     * Settings can be adjusted via config/vis_config.yaml
     * ```python Demo/run_visualization_on_single_video.py vid.m4v```
