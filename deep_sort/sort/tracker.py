@@ -47,6 +47,9 @@ class Tracker:
         self.tracks = []
         self._next_id = 1
 
+    def clear_id(self):
+        self._next_id = 1
+
     def reset(self):
         self.tracks = []
 

@@ -21,11 +21,15 @@ OdCore:
   BATCH_SIZE: 8
 
   ###
+  # This parameter is used to specify the path for saving the raw results.
+  PATH_SBD_RESULTS: "/data/share/fjogl/vhh_od_dev_results/spd_results/"
+
+  ###
   # This parameter is used to save raw results (e.g. debug visualizations).
   SAVE_RAW_RESULTS: 0       # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the raw results.
-  PATH_RAW_RESULTS: "./results/vhh_od/raw_results/"
+  PATH_RAW_RESULTS: "/data/share/fjogl/vhh_od_dev_results/raw_results/"
   ###
   # This parameter is used to specify the prefix for the results file.
   PREFIX_RAW_RESULTS: "results_raw_"
@@ -38,7 +42,7 @@ OdCore:
   SAVE_FINAL_RESULTS: 1     # 1 ... yes 0 ... no
   ###
   # This parameter is used to specify the path for saving the final results.
-  PATH_FINAL_RESULTS: "./results/vhh_od/final_results/"
+  PATH_FINAL_RESULTS: "/data/share/fjogl/vhh_od_dev_results/final_results/"
   ###
   # This parameter is used to specify the prefix for the results file.
   PREFIX_FINAL_RESULTS: "results_"
@@ -48,7 +52,7 @@ OdCore:
 
   ###
   # This parameter is used to specify the path to the videos.
-  PATH_VIDEOS: "./videos"
+  PATH_VIDEOS: "/data/share/fjogl/vhh_od_dev_results/videos/"
 
   ###
   # This parameter is used to specify the path to the pre-trained model.
@@ -57,9 +61,15 @@ OdCore:
   ###
   # yolov3 detector
   MODEL_CONFIG_PATH: "./config/yolov3/yolov3.cfg"
+
   ###
   # yolov3 detector - confidence threshold
-  MODEL_CONF_THRES: 0.8
+  MODEL_CONF_THRES: 0.1
+
+  ###
+  # yolov3 detector - NMS confidence threshold
+  MODEL_NMS_THRESH: 0.3
+
   ###
   # yolov3 detector - holding list of trained class categories
   MODEL_CLASS_NAMES_PATH: "./config/yolov3/coco.names"
@@ -91,7 +101,33 @@ OdCore:
   ###
   # Number of frames that a track remains in initialization phase. Tracking starts if object has been detected x times. Must be an integer >= 0
   DS_NUM_INIT: 3
-
+  ###
+  # Max number of frames to return at the same time from getFramesByShots_NEW
+  MAX_FRAMES: 2000
+  ###
+  # Enables the classifier
+  USE_CLASSIFIER: 1
+  ###
+  # Enable majority classification, a detected object will be given the classification which appears the most often 
+  # (this applies only to classification and not to object detection)
+  USE_CLASSIFIER_MAJORITY_VOTING: 1
+  ###
+  # Path to the model the classifier is supposed to use
+  PATH_TO_CLASSIFIER_MODEL: "/data/ext/VHH/datasets/Classifier_models/wd_0.05_best_wide_resnet50_2.weights"
+  ###
+  # Architecture of the model the classifier is using
+  CLASSIFIER_MODEL_ARCHITECTURE: "wide_resnet50_2"
+  ###
+  # Classes to use for the classifier (this influences training, testing and inference)
+  CLASSES_FOR_CLASSIFIER: ["others", "soldier", "corpse", "person_with_kz_uniform"]
+  ###
+  # Set to 1 if the output coordinates should be normalized 
+  DO_NORMALIZE_COORDINATES: 1
+  ###
+  # Factor for persons classified with others. 
+  # A factor of 0.25 means that during majority voting between person classes a vote for "person (others)" is only wort 0.25 whereas a vote for any other persons class
+  # such as "persons (soldier)" is worth 1.
+  OTHERS_FACTOR: 1
 
 Evaluation:
   ###

@@ -70,3 +70,92 @@ class Shot(object):
             }
             dict_l.append(entry_dict)
         return dict_l
+
+    def update_person_classification(self):
+        """ 
+        Update the person classification 
+        I.e. if the classifier classified a person as a soldier 
+        then the class will be changed from "Person" to "Person (Soldier)"
+        """
+        for obj in self.object_list:
+            if obj.person_classification is not None:
+                obj.update_with_person_classification()
+
+    def update_obj_classifications(self, use_majority_voting, others_factor = 1):
+        """
+        Updates the class names of objects according to their classification. 
+        If use_majority_voting is True:
+            Then objects with the same ID will have the same class (the majority class) in every frame
+        """
+
+        if not use_majority_voting:
+            self.update_person_classification()
+            return
+
+        # Gather all objects according to their tracking id
+        objs = {}
+        for obj in self.object_list:
+            if str(obj.oid) in objs:
+                objs[str(obj.oid)].append(obj)
+            else:
+                objs[str(obj.oid)] = [obj]
+
+        # Do majority voting    
+        do_majority_classification(objs)
+
+        # Gather all objects with person classification according to their tracking id
+        persons = {}
+        for obj in self.object_list:
+            if obj.person_classification is None:
+                continue
+
+            if str(obj.oid) in persons:
+                persons[str(obj.oid)].append(obj)
+            else:
+                persons[str(obj.oid)] = [obj]
+
+        self.update_person_classification()
+
+        # Do majority voting on the person class  
+        do_majority_classification(persons, change_weight_of_others(others_factor))
+
+def do_majority_classification(objs, scale_function = (lambda x,y: y)):
+        """
+        Set the classification of each object to the majority class.
+            obj_list: dictionary where the keys are the object IDs and the values is a list of all CustomObject with this ID
+            scale_function: (string, float) -> float 
+                Function to weigh the votes for a given class.
+                The default value does not change the weight of the votes.
+        """
+        for obj_list in objs.values():
+            # Gather votes
+            votes = {}
+            for obj in obj_list:
+                if obj.object_class_name in votes:
+                    votes[obj.object_class_name] += 1
+                else:
+                    votes[obj.object_class_name] = 1
+
+            # Apply scale_function
+            for key in votes.keys():
+                votes[key] = scale_function(key, votes[key])
+
+            # Find winner
+            winner_idx = np.argmax(votes.values())
+            winner = list(votes.keys())[winner_idx]
+
+            # Update the objects class names and classifications according to the winner
+            for obj in obj_list:
+                obj.update_classification(winner)
+
+def change_weight_of_others(others_factor):
+    """
+    A function that changes the votes for the "others" 
+    """
+    def fct(key, votes):
+        if key != "person":
+            return votes
+        else:
+            return int(others_factor*votes)
+    return fct
+                

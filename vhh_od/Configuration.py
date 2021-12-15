@@ -96,6 +96,8 @@ class Configuration:
         # od_core_config section
         self.batch_size = int(od_core_config['BATCH_SIZE'])
 
+        self.path_sbd_results = od_core_config['PATH_SBD_RESULTS']
+
         self.save_raw_results = int(od_core_config['SAVE_RAW_RESULTS'])
         self.path_postfix_raw_results = od_core_config['POSTFIX_RAW_RESULTS']
         self.path_prefix_raw_results = od_core_config['PREFIX_RAW_RESULTS']
@@ -112,9 +114,22 @@ class Configuration:
         self.model_config_path = od_core_config['MODEL_CONFIG_PATH']
 
         self.confidence_threshold = float(od_core_config['MODEL_CONF_THRES'])
+        self.nms_threshold = float(od_core_config['MODEL_NMS_THRESH'])
+
         self.model_class_names_path = od_core_config['MODEL_CLASS_NAMES_PATH']
         self.model_class_selection_path = od_core_config['MODEL_CLASS_SELECTION_PATH']
 
+        self.max_frames = int(od_core_config['MAX_FRAMES'])
+
+        self.use_classifier = od_core_config['USE_CLASSIFIER'] == "1"
+        self.use_classifier_majority_voting = od_core_config['USE_CLASSIFIER_MAJORITY_VOTING'] == "1"
+        self.classifier_model_path = od_core_config['PATH_TO_CLASSIFIER_MODEL']
+        self.classifier_model_architecture = od_core_config['CLASSIFIER_MODEL_ARCHITECTURE']
+
+        self.do_normalize_coordinates = od_core_config['DO_NORMALIZE_COORDINATES'] == "1"
+
+        self.others_factor = od_core_config['OTHERS_FACTOR']
+        
         #DeepSort Parameters
         if od_core_config["USE_DEEPSORT"] == "1":
             self.use_deepsort = True

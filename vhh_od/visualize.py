@@ -1,6 +1,6 @@
 import cv2
 import csv
-import sys
+import os
 from matplotlib import cm
 from vhh_od.Video import Video
 from vhh_od.utils import *
@@ -41,6 +41,9 @@ def visualize_video(video: Video, full_csv_path, out_path):
 
     csv_file = open(full_csv_path, "r")
     annotations = csv.reader(csv_file, delimiter=",")
+
+    # Skip header
+    next(annotations, None) 
 
     vid_id = video.vidName.split('.')[0]
     vid_format = video.vidName.split('.')[1]
@@ -118,32 +121,3 @@ def visualize_video(video: Video, full_csv_path, out_path):
         frame_idx += 1
     video_writer.release()
     printCustom(f"Visualization done. Wrote {frame_idx} frames to \"{parameters['result_path']}", STDOUT_TYPE.INFO)
-
-
-
-
-
-
-if __name__ == "__main__":
-
-    # TODO: read params from config
-    # ---- Paths
-
-    video_file = sys.argv[1]
-
-    video_file_path = "../videos"
-    results_path = "../results/vhh_od"
-    csv_results_path = os.path.join(results_path, "final_results")
-    video_results_path = os.path.join(results_path, "vis")
-
-    vid_instance = Video()
-    vid_instance.load(os.path.join(video_file_path, video_file))
-    vid_name = vid_instance.vidName.split(".")[0]
-
-    full_csv_path = os.path.join(csv_results_path, f"{vid_name}.csv")
-
-    if not os.path.isdir(video_results_path):
-        os.makedirs(video_results_path)
-        printCustom(f"Created results folder \"{video_results_path}\"", STDOUT_TYPE.INFO)
-
-    visualize_video(vid_instance, full_csv_path, video_results_path)
