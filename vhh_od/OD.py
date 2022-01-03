@@ -440,8 +440,12 @@ class OD(object):
         results_od_l = []
         previous_shot_id, frame_id = -1, -1
         
+        height, width = None, None
         for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=self.preprocess, max_frames_per_return=self.config_instance.max_frames):
             shot_tensors, images_orig, current_shot = shot_frames["Tensors"], shot_frames["Images"], shot_frames["ShotInfo"]
+
+            if height is None:
+                height, width, _ = images_orig[0].shape
 
             shot_id, vid_name = int(current_shot.sid), str(current_shot.movie_name)
             start, stop = int(current_shot.start_pos), int(current_shot.end_pos)
@@ -486,7 +490,6 @@ class OD(object):
 
             # Normalize coordinates
             if self.config_instance.do_normalize_coordinates:
-                height, width, _ = images_orig[0].shape
                 self.normalize_bb(current_shot.object_list, width, height)
 
             previous_shot_id = shot_id
