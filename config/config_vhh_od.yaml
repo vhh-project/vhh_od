@@ -5,7 +5,7 @@ Development:
   DEBUG_FLAG: 0             # 1 ... activate 0 ... deactivate
   ###
   # This parameter is used to specify a SBD results file for debugging mode.
-  SBD_RESULTS_PATH: "/data/share/datasets/vhh_mmsi_test_db_v3/annotations/sbd/57.csv"
+  STC_RESULTS_PATH: "/data/share/fjogl/vhh_od_dev_results/stc_results/"
   ###
   # This parameter is used to save a debug package (e.g. including some visualizations, ... - not available yet).
   SAVE_DEBUG_PKG: 0
@@ -22,7 +22,7 @@ OdCore:
 
   ###
   # This parameter is used to specify the path for saving the raw results.
-  PATH_SBD_RESULTS: "/data/share/fjogl/vhh_od_dev_results/spd_results/"
+  PATH_STC_RESULTS: "/data/share/fjogl/vhh_od_dev_results/stc_results/"
 
   ###
   # This parameter is used to save raw results (e.g. debug visualizations).
@@ -122,12 +122,16 @@ OdCore:
   CLASSES_FOR_CLASSIFIER: ["others", "soldier", "corpse", "person_with_kz_uniform"]
   ###
   # Set to 1 if the output coordinates should be normalized 
-  DO_NORMALIZE_COORDINATES: 1
+  DO_NORMALIZE_COORDINATES: 0
   ###
   # Factor for persons classified with others. 
   # A factor of 0.25 means that during majority voting between person classes a vote for "person (others)" is only wort 0.25 whereas a vote for any other persons class
   # such as "persons (soldier)" is worth 1.
   OTHERS_FACTOR: 1
+  ###
+  # List of shot types on which the detection will NOT be used
+  SHOT_TYPES_TO_NOT_RUN_OD:
+    - I
 
 Evaluation:
   ###

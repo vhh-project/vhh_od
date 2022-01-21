@@ -324,8 +324,8 @@ class OD(object):
 
         if(self.config_instance.debug_flag == True):
             # load shot list from result file
-            printCustom(f"Loading SBD Results from \"{self.config_instance.sbd_results_path}\"...", STDOUT_TYPE.INFO)
-            shots_np = self.loadSbdResults(self.config_instance.sbd_results_path)
+            printCustom(f"Loading STC Results from \"{self.config_instance.path_stc_results}\"...", STDOUT_TYPE.INFO)
+            shots_np = self.loadStcResults(self.config_instance.path_stc_results)
         else:
             shots_np = shots_per_vid_np
 
@@ -354,6 +354,11 @@ class OD(object):
         shot_instance = None
         for s in range(offset, offset + num_shots):
             # print(shots_per_vid_np[s])
+
+            # Do not use shots that have the wrong shot type
+            if shots_per_vid_np[s][4] in self.config_instance.shot_types_do_not_run_od:
+                continue
+
             shot_instance = Shot(sid=int(s + 1),
                                  movie_name=shots_per_vid_np[s][0],
                                  start_pos=int(shots_per_vid_np[s][2]),
@@ -435,8 +440,12 @@ class OD(object):
         results_od_l = []
         previous_shot_id, frame_id = -1, -1
         
+        height, width = None, None
         for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=self.preprocess, max_frames_per_return=self.config_instance.max_frames):
             shot_tensors, images_orig, current_shot = shot_frames["Tensors"], shot_frames["Images"], shot_frames["ShotInfo"]
+
+            if height is None:
+                height, width, _ = images_orig[0].shape
 
             shot_id, vid_name = int(current_shot.sid), str(current_shot.movie_name)
             start, stop = int(current_shot.start_pos), int(current_shot.end_pos)
@@ -481,7 +490,6 @@ class OD(object):
 
             # Normalize coordinates
             if self.config_instance.do_normalize_coordinates:
-                height, width, _ = images_orig[0].shape
                 self.normalize_bb(current_shot.object_list, width, height)
 
             previous_shot_id = shot_id
@@ -566,19 +574,15 @@ class OD(object):
 
         return predictions_l
 
-    def loadSbdResults(self, sbd_results_path):
+    def loadStcResults(self, stc_results_path):
         """
-        Method for loading shot boundary detection results as numpy array
-
-        .. note::
-            Only used in debug_mode.
-
-        :param sbd_results_path: [required] path to results file of shot boundary detection module (vhh_sbd)
-        :return: numpy array holding list of detected shots.
+        Method for loading shot type classification results as numpy array
+        :param stc_results_path: [required] path to results file of shot type classification module (vhh_stc)
+        :return: numpy array holding list of detected shots and shot types.
         """
 
         # open sbd results
-        fp = open(sbd_results_path, 'r')
+        fp = open(stc_results_path, 'r')
         lines = fp.readlines()
         lines = lines[1:]
 
@@ -586,7 +590,7 @@ class OD(object):
         for i in range(0, len(lines)):
             line = lines[i].replace('\n', '')
             line_split = line.split(';')
-            lines_n.append([line_split[0], os.path.join(line_split[1]), line_split[2], line_split[3]])
+            lines_n.append([line_split[0], line_split[1], line_split[2], line_split[3], line_split[4]])
         lines_np = np.array(lines_n)
 
         return lines_np
