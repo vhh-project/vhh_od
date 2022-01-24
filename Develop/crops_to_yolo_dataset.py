@@ -81,8 +81,8 @@ def create_and_store_labels(img_id, width, height, objects, dir):
             y2 = row["bb_y2"] / height
 
             # To xywh presentation
-            bb_x_center = (x2 - x1) / 2
-            bb_y_center = (y2 - y1) / 2
+            bb_x_center = (x2 - x1) / 2 + x1
+            bb_y_center = (y2 - y1) / 2 + y1
             bb_width = x2 - x1
             bb_height = y2 - y1
 
