@@ -37,7 +37,7 @@ def drawBBox(image, bbox, parameters, tracked):
     cv2.rectangle(image, (x1, y1), (x1 + text_size[0] + 3, y1 + text_size[1] + 4), color, -1)
     cv2.putText(image, label, (x1, y1 + text_size[1]), font, font_size, [0, 0, 0], font_thickness)
 
-def visualize_video(video: Video, full_csv_path, out_path):
+def visualize_video(video: Video, full_csv_path, out_path, render_every_x_frame = 1):
 
     csv_file = open(full_csv_path, "r")
     annotations = csv.reader(csv_file, delimiter=",")
@@ -116,7 +116,8 @@ def visualize_video(video: Video, full_csv_path, out_path):
             except StopIteration:
                 annotation_available = False
 
-        video_writer.write(image)
+        if frame_idx % render_every_x_frame == 0:
+            video_writer.write(image)
 
         frame_idx += 1
     video_writer.release()
