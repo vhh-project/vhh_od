@@ -439,7 +439,8 @@ class OD(object):
         printCustom(f"Starting Object Detection (Executing on device {self.device})... ", STDOUT_TYPE.INFO)
         results_od_l = []
         previous_shot_id, frame_id = -1, -1
-        
+
+        last_shot_to_process = max([shot.sid for shot in vid_instance.shot_list])
         height, width = None, None
         for shot_frames in vid_instance.getFramesByShots_NEW(preprocess_pytorch=self.preprocess, max_frames_per_return=self.config_instance.max_frames):
             shot_tensors, images_orig, current_shot = shot_frames["Tensors"], shot_frames["Images"], shot_frames["ShotInfo"]
@@ -461,7 +462,7 @@ class OD(object):
                 previous_shot_id = shot_id
                 continue
 
-            print("{0} / {1} shots".format(shot_id, len(vid_instance.shot_list)), end="\r")
+            print("{0} / {1} shots".format(shot_id, last_shot_to_process), end="\r")
 
             if(self.config_instance.debug_flag == True):
                 print("-----")
