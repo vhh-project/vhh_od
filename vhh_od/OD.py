@@ -362,7 +362,7 @@ class OD(object):
             shot_instance = Shot(sid=int(s + 1),
                                  movie_name=shots_per_vid_np[s][0],
                                  start_pos=int(shots_per_vid_np[s][2]),
-                                 end_pos=int(shots_per_vid_np[s][3]))
+                                 end_pos=int(shots_per_vid_np[s][3]) + 1 )
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
