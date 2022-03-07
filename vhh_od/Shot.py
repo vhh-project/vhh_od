@@ -49,6 +49,14 @@ class Shot(object):
         for obj in self.object_list:
             obj.printObjectInfo()
 
+    def make_end_pos_compatible_with_stc(self):
+        """
+        End_pos in STC is always included in a shot i.e. end_pos 130 means that the shot contains frame 130
+        In OD end_pos does not inlcude the last frame, so end_pos 130 means that the last frame of the shot is 129
+        As end_pos gets incriminated when loading STC data, we need to subtract 1 from end_pos to make it compatible with STC.
+        """
+        self.end_pos -= 1
+
     def convertObjectList2Dict(self):
         #print("Export objects to csv file ... ")
         dict_l = []

@@ -362,7 +362,7 @@ class OD(object):
             shot_instance = Shot(sid=int(s + 1),
                                  movie_name=shots_per_vid_np[s][0],
                                  start_pos=int(shots_per_vid_np[s][2]),
-                                 end_pos=int(shots_per_vid_np[s][3]))
+                                 end_pos=int(shots_per_vid_np[s][3]) + 1 )
 
             vid_instance.addShotObject(shot_obj=shot_instance)
 
@@ -373,7 +373,7 @@ class OD(object):
         shot_id = int(current_shot.sid)
         vid_name = str(current_shot.movie_name)
         start = int(current_shot.start_pos)
-        stop = int(current_shot.end_pos)
+        stop = int(current_shot.end_pos) 
 
         # For each frame, track predictions and store results
         for a in range(0, len(predictions_l)):
@@ -408,7 +408,7 @@ class OD(object):
             # store predictions for each object in the frame
             for obj in detection_data:   
                 results_od_l.append([obj.oid, shot_id, vid_name, start, stop, frame_id,
-                                        obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])                     
+                                        obj.bb_x1, obj.bb_y1, obj.bb_x2, obj.bb_y2, obj.object_conf, obj.class_score, obj.object_class_idx])  
 
                 current_shot.addCustomObject(obj)
 
@@ -497,6 +497,10 @@ class OD(object):
         
         if (self.config_instance.debug_flag):
             vid_instance.printVIDInfo()
+
+        # Ensure that the frame window in the output is compatible with STC
+        for shot in vid_instance.shot_list:
+            shot.make_end_pos_compatible_with_stc()
 
         # Store results
         if (self.config_instance.save_final_results):
