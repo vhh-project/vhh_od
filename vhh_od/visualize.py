@@ -12,6 +12,10 @@ def drawBBox(image, bbox, parameters, tracked):
     x2 = int(bbox[3])
     y1 = int(bbox[2])
     y2 = int(bbox[4])
+    class_name = bbox[5]
+
+    object_conf = f"{float(bbox[6]):.4f}"
+    class_score = f"{float(bbox[7]):.4f}"
 
     if tracked:
         color_idx = obj_id % parameters["num_colors"]
@@ -20,11 +24,10 @@ def drawBBox(image, bbox, parameters, tracked):
     else:
         color = parameters["const_color"]
 
-    class_name = bbox[5]
     if tracked:
-        label = f"{class_name} {obj_id}"
+        label = f"{class_name} {obj_id} {object_conf} {class_score}"
     else:
-        label = class_name
+        label = f"{class_name} {object_conf} {class_score}"
     font = parameters["font"]
     font_size = parameters["font_size"]
     font_thickness = parameters["font_thickness"]
@@ -110,7 +113,7 @@ def visualize_video(video: Video, full_csv_path, out_path, render_every_x_frame 
         # draw all available bounding boxes onto frame
         while annotation_available and int(annotation[4]) == frame_idx:
             annotation = np.array(annotation)
-            drawBBox(image, annotation[[5,6,7,8,9,12]], parameters, tracked)
+            drawBBox(image, annotation[[5,6,7,8,9,12,10,11]], parameters, tracked)
             try:
                 annotation = next(annotations)
             except StopIteration:
