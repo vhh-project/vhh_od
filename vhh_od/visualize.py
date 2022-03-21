@@ -66,11 +66,8 @@ def visualize_video(video: Video, full_csv_path, out_path, render_every_x_frame 
         printCustom(f"CSV-File does not seem to match Video", STDOUT_TYPE.ERROR)
         return
 
-    # TODO: at the moment, missing confidence values indicate tracking. Maybe use file naming convention instead.
-    if annotation[10] == "N/A":
-        tracked = True
-    else:
-        tracked = False
+    # We assume that tracking was used
+    tracked = True
     printCustom(f"Visualizing Tracked Results: {tracked}", STDOUT_TYPE.INFO)
 
     # Loading Parameters from Config
