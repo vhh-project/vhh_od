@@ -168,14 +168,14 @@ class OD(object):
         Takes prediction data and outputs the detection data as a list of "CustObject"s
         Use this if you are using a tracker
         """
-        x1_list = tracking_results[:,0]
-        x2_list = tracking_results[:,2]
-        y1_list = tracking_results[:,1]
-        y2_list = tracking_results[:,3]
-        ids = tracking_results[:,4]
-        object_classes = tracking_results[:,5]
-        object_confs = None
-        class_confs = None
+        x1_list = tracking_results[:,0].astype(int)
+        x2_list = tracking_results[:,2].astype(int)
+        y1_list = tracking_results[:,1].astype(int)
+        y2_list = tracking_results[:,3].astype(int)
+        ids = tracking_results[:,4].astype(int)
+        object_classes = tracking_results[:,5].astype(int)
+        class_confs = tracking_results[:,6]
+        object_confs = tracking_results[:,7]
         num_results = len(tracking_results)
 
         data = Detection_Data(x1_list, x2_list, y1_list, y2_list, ids, object_classes, object_confs, class_confs, num_results)
@@ -264,12 +264,13 @@ class OD(object):
         bbox_xywh = np.array([[x[i],y[i],w[i],h[i]] for i in range(len(frame_based_predictions))])
 
         # get class confidences
-        cls_conf = frame_based_predictions[:, 5].cpu().numpy()
+        object_confs = frame_based_predictions[:,4].cpu().numpy()
+        class_confs = frame_based_predictions[:,5].cpu().numpy()
         class_predictions = frame_based_predictions[:, 6].cpu().numpy()
 
         # Track Objects using Deep Sort tracker
         # Tracker expects Input as XYWH but returns Boxes as XYXY
-        tracking_results = np.array(self.tracker.update(bbox_xywh, cls_conf, class_predictions, im))
+        tracking_results = np.array(self.tracker.update(bbox_xywh, object_confs, class_confs, class_predictions, im))
         num_results = len(tracking_results)
 
         if num_results > 0:
@@ -576,7 +577,7 @@ class OD(object):
                                     filtered_detection = torch.cat([filtered_detection, detected_object.unsqueeze(dim=0)], dim=0)
 
                     predictions_l.append(filtered_detection)
-
+                    
         return predictions_l
 
     def loadStcResults(self, stc_results_path):
