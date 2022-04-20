@@ -567,15 +567,19 @@ class OD(object):
                     detections, self.config_instance.confidence_threshold, self.config_instance.nms_threshold)
 
                 # Remove detections with the wrong class
+                # In case of no predictions we still need to append None to increase the frame counter
                 for frame_detection in detections:
                     if frame_detection.shape[0] >= 1:
                         filtered_detection = []
                         for detection in frame_detection:
-                            class_idx = detection[4].int()
+                            class_idx = detection[5].int()
                             if classes[class_idx] in class_filter:
                                 filtered_detection.append(detection)
-                        predictions_l.append(torch.stack(filtered_detection))
 
+                        if len(filtered_detection) > 0:
+                            predictions_l.append(torch.stack(filtered_detection))
+                        else:
+                            predictions_l.append(None)
                     else:
                         predictions_l.append(None)
         return predictions_l
