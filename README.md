@@ -89,6 +89,10 @@ Install a Version of PyTorch depending on your setup. Consult the [PyTorch websi
     * ```python Demo/run_visualization_on_single_video.py vid.m4v```
     * This will create a video with bounding boxes in the raw results folder specified in config_vhh_od.yaml
 
+   If you have two versions of a video that you want to compare you can use the ```compare_videos``` script:
+   ```python Demo/mpare_videos.py PATH_VIDEO1 PATH_VIDEO2 OUTPUT_FOLDER```
+   This will create a side-by-side comparison of the two videos in the specified folder.
+
 
 ## Release Generation
     
