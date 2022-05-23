@@ -6,20 +6,19 @@ Written to compare YOLOv3 with YOLOv5.
 
 import cv2
 import numpy as np
+import argparse
+import os
 
-video1_path = "/data/share/fjogl/vhh_od_dev_results/raw_results/vis/8220_results_yolov3.avi"
-video2_path = "/data/share/fjogl/vhh_od_dev_results/raw_results/vis/8220_results_yolov3_new.avi"
-
-video1_info = "YOLOv3"
-video2_info = "YOLOv3_retrained"
-
-output_path = "/data/share/fjogl/vhh_od_dev_results/raw_results/vis/output.mp4"
-
-def main():
+def main(video1_path, video2_path, output_path):
     cap1 = cv2.VideoCapture(video1_path)
     cap2 = cv2.VideoCapture(video2_path)
 
     out, fourcc = None, None
+
+    video1_info = os.path.split(video1_path)[-1]
+    video2_info = os.path.split(video2_path)[-1]
+
+    output_path = os.path.join(output_path, "merged_video.m4v")
 
     # Merge videos
     for iter in __import__("itertools").count():
@@ -47,10 +46,15 @@ def main():
         out.write(combined_frame)
 
     out.release()
-    
-
-
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('video1', type=str,
+                    help='Path to the first video')
+    parser.add_argument('video2', type=str,
+                    help='Path to the second video')
+    parser.add_argument('path_out', metavar='path_out', type=str,
+                    help='Path where the output film should be stored')
+    args = parser.parse_args()
+    main(args.video1, args.video2, args.path_out)
 
