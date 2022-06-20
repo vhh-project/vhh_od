@@ -503,6 +503,11 @@ class OD(object):
 
             previous_shot_id = shot_id
 
+            # Delete data from this shot so it does not clog up the memory while we load the next frames
+            del shot_frames
+            del shot_tensors
+            del images_orig
+
         if (self.config_instance.debug_flag):
             vid_instance.printVIDInfo()
 
