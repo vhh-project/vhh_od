@@ -12,6 +12,10 @@ def drawBBox(image, bbox, parameters, tracked):
     x2 = int(bbox[3])
     y1 = int(bbox[2])
     y2 = int(bbox[4])
+    class_name = bbox[5]
+
+    object_conf = f"{float(bbox[6]):.4f}"
+    class_score = f"{float(bbox[7]):.4f}"
 
     if tracked:
         color_idx = obj_id % parameters["num_colors"]
@@ -20,11 +24,10 @@ def drawBBox(image, bbox, parameters, tracked):
     else:
         color = parameters["const_color"]
 
-    class_name = bbox[5]
     if tracked:
-        label = f"{class_name} {obj_id}"
+        label = f"{class_name} {obj_id} {object_conf} {class_score}"
     else:
-        label = class_name
+        label = f"{class_name} {object_conf} {class_score}"
     font = parameters["font"]
     font_size = parameters["font_size"]
     font_thickness = parameters["font_thickness"]
@@ -37,7 +40,7 @@ def drawBBox(image, bbox, parameters, tracked):
     cv2.rectangle(image, (x1, y1), (x1 + text_size[0] + 3, y1 + text_size[1] + 4), color, -1)
     cv2.putText(image, label, (x1, y1 + text_size[1]), font, font_size, [0, 0, 0], font_thickness)
 
-def visualize_video(video: Video, full_csv_path, out_path):
+def visualize_video(video: Video, full_csv_path, out_path, render_every_x_frame = 1):
 
     csv_file = open(full_csv_path, "r")
     annotations = csv.reader(csv_file, delimiter=",")
@@ -63,11 +66,8 @@ def visualize_video(video: Video, full_csv_path, out_path):
         printCustom(f"CSV-File does not seem to match Video", STDOUT_TYPE.ERROR)
         return
 
-    # TODO: at the moment, missing confidence values indicate tracking. Maybe use file naming convention instead.
-    if annotation[10] == "N/A":
-        tracked = True
-    else:
-        tracked = False
+    # We assume that tracking was used
+    tracked = True
     printCustom(f"Visualizing Tracked Results: {tracked}", STDOUT_TYPE.INFO)
 
     # Loading Parameters from Config
@@ -110,13 +110,14 @@ def visualize_video(video: Video, full_csv_path, out_path):
         # draw all available bounding boxes onto frame
         while annotation_available and int(annotation[4]) == frame_idx:
             annotation = np.array(annotation)
-            drawBBox(image, annotation[[5,6,7,8,9,12]], parameters, tracked)
+            drawBBox(image, annotation[[5,6,7,8,9,12,10,11]], parameters, tracked)
             try:
                 annotation = next(annotations)
             except StopIteration:
                 annotation_available = False
 
-        video_writer.write(image)
+        if frame_idx % render_every_x_frame == 0:
+            video_writer.write(image)
 
         frame_idx += 1
     video_writer.release()

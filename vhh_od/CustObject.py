@@ -5,7 +5,7 @@ class CustObject(object):
     This class is representing a shot. Each instance of this class is holding the properties of one shot.
     """
 
-    def __init__(self, oid, fid, object_class_idx, object_class_name, object_conf, class_score, bb_x1, bb_y1, bb_x2, bb_y2):
+    def __init__(self, oid, fid, object_class_idx, object_class_name, confidence, bb_x1, bb_y1, bb_x2, bb_y2):
         """
         Constructor
 
@@ -20,8 +20,7 @@ class CustObject(object):
         self.fid = fid
         self.object_class_name = object_class_name
         self.object_class_idx = object_class_idx
-        self.object_conf = object_conf
-        self.class_score = class_score
+        self.confidence = confidence
         self.bb_x1 = bb_x1
         self.bb_y1 = bb_y1
         self.bb_x2 = bb_x2
@@ -35,8 +34,8 @@ class CustObject(object):
         :return: string holding all properties of one shot.
         """
         tmp_str = str(self.fid) + ";" + str(self.oid) + ";" + str(self.bb_x1) + ";" + \
-                  str(self.bb_y1) + ";" + str(self.bb_x2) + ";" + str(self.bb_y2) + ";" + str(self.object_conf) \
-                  + ";" + str(self.class_score) + ";" + str(self.object_class_name) + ";" + str(self.object_class_idx)
+                  str(self.bb_y1) + ";" + str(self.bb_x2) + ";" + str(self.bb_y2) + ";" + str(self.confidence) \
+                  + ";" + str(self.object_class_name) + ";" + str(self.object_class_idx)
         return tmp_str
 
     def add_person_classification(self, classification):
@@ -68,7 +67,6 @@ class CustObject(object):
         print("frame id: " + str(self.fid))
         print("object_class_name: " + str(self.object_class_name))
         print("object_class_idx:" + str(self.object_class_idx))
-        print("object_conf: " + str(self.object_conf))
-        print("class_score: " + str(self.class_score))
+        print("confidence: " + str(self.confidence))
         print("bounding box: (" + str(self.bb_x1) + "," + str(self.bb_y1) + ","
               + str(self.bb_x2) + "," + str(self.bb_y2) + ")")

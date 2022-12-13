@@ -34,7 +34,7 @@ class Configuration:
         self.config_file = config_file
 
         self.debug_flag = -1
-        self.sbd_results_path = None
+        self.stc_results_path = None
         self.save_debug_pkg_flag = -1
 
         self.batch_size = -1
@@ -86,7 +86,7 @@ class Configuration:
 
         # developer_config section
         self.debug_flag = int(developer_config['DEBUG_FLAG'])
-        self.sbd_results_path = developer_config['SBD_RESULTS_PATH']
+        self.stc_results_path = developer_config['STC_RESULTS_PATH']
         self.save_debug_pkg_flag = int(developer_config['SAVE_DEBUG_PKG'])
 
         # pre-processing section
@@ -96,7 +96,7 @@ class Configuration:
         # od_core_config section
         self.batch_size = int(od_core_config['BATCH_SIZE'])
 
-        self.path_sbd_results = od_core_config['PATH_SBD_RESULTS']
+        self.path_stc_results = od_core_config['PATH_STC_RESULTS']
 
         self.save_raw_results = int(od_core_config['SAVE_RAW_RESULTS'])
         self.path_postfix_raw_results = od_core_config['POSTFIX_RAW_RESULTS']
@@ -127,8 +127,8 @@ class Configuration:
         self.classifier_model_architecture = od_core_config['CLASSIFIER_MODEL_ARCHITECTURE']
 
         self.do_normalize_coordinates = od_core_config['DO_NORMALIZE_COORDINATES'] == "1"
-
         self.others_factor = od_core_config['OTHERS_FACTOR']
+        self.shot_types_do_not_run_od = od_core_config['SHOT_TYPES_TO_NOT_RUN_OD']
         
         #DeepSort Parameters
         if od_core_config["USE_DEEPSORT"] == "1":
